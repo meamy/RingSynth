@@ -30,7 +30,7 @@ import Test.QuickCheck
  Rings
  ---------------------------------}
 
--- | The type of residues \(\mathbb{Z}[\sqrt{2}]/\mathbb{Z}_2\)
+-- | The type of residues \(\mathbb{Z}[\sqrt{2}]/2\mathbb{Z\)
 type Z2RootTwo = RootTwo Z2
   
 {---------------------------------
