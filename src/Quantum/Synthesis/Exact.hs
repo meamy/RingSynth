@@ -40,14 +40,24 @@ instance ToMatrix g r => ToMatrix [g] r where
  ---------------------------------}
 
 -- | Class of unitaries over the ring /r/ synthesizable as a word
---   over the generators in /g/
-class ToMatrix g r => Synthesizable r g | r -> g where
+--   over the generators in /g/. Implements a generic exact synthesis algorithm
+class (DenomExp r, ToMatrix g r, Adjoint r, WholePart r z) => Synthesizable r z g | r -> g, r -> z where
+  initialize :: Int -> [z] -> [g]
+  reduce :: [z] -> [g]
+  synthesizeState :: forall n. Nat n => Int -> Vector n r -> [g]
+  synthesize :: Nat n => Matrix n n r -> [g]
+
+  -- default implementations
   -- | Exactly synthesize a length /n/ unit vector over r with
   --   initial state e/i/
-  synthesizeState :: (Nat n, Adjoint r) => Int -> Vector n r -> [g]
+  synthesizeState e = go where
+    go :: Vector n r -> [g]
+    go vec = case denomexp_decompose (list_of_vector vec) of
+      (xs, 0) -> initialize e xs
+      (xs, _) -> gates ++ go vec' where
+        gates = reduce xs
+        vec' = vector_head . unMatrix $ adj (toMatrix gates) .*. (column_matrix vec)
   -- | Exactly synthesize an /n/x/n/ unitary matrix over r
-  synthesize :: (Nat n, Adjoint r) => Matrix n n r -> [g]
-  -- default implementation
   synthesize m = go (unMatrix m) 0 where
     go :: (Nat n') => Vector n (Vector n' r) -> Integer -> [g]
     go Nil _j        = []
@@ -62,5 +72,5 @@ class ToMatrix g r => Synthesizable r g | r -> g where
 
 -- | Checks correctness of synthesis
 prop_correct ::
-  (Nat n, Eq r, Adjoint r, Synthesizable r g) => Matrix n n r -> Bool
+  (Nat n, Eq r, Adjoint r, Synthesizable r z g) => Matrix n n r -> Bool
 prop_correct m = m == (toMatrix $ synthesize m)

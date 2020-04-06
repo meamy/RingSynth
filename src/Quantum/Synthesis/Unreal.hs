@@ -17,7 +17,6 @@ Portability : portable
 module Quantum.Synthesis.Unreal where
 
 import Data.List
-import Data.Bits
 
 import Control.Monad
 
@@ -27,6 +26,8 @@ import Quantum.Synthesis.MultiQubitSynthesis
 import Quantum.Synthesis.EuclideanDomain
 
 import Test.QuickCheck
+
+import Quantum.Synthesis.Exact
 
 {---------------------------------
  Rings
@@ -138,43 +139,17 @@ residue2irt2 p = (fromInteger a, fromInteger b) where
  ---------------------------------}
 
 -- | The generators of the integral circuit group
-data Generator =
+data UnrealGen =
     Z !Int
   | X !Int !Int
   | F !Int !Int !Int
   deriving (Eq, Show, Ord)
 
--- | Class for substituting arguments in circuits
-class Subst c where
-  subst :: (Int -> Int) -> c -> c
+instance Adjoint UnrealGen where
+  adj (F k i j) = F ((-k) `mod` 8) i j
+  adj x         = x
 
-instance Subst c => Subst [c] where
-  subst f = map (subst f)
-
-instance Subst Generator where
-  subst f (Z i)     = Z $ f i
-  subst f (X i j)   = X (f i) (f j)
-  subst f (F k i j) = F k (f i) (f j)
-
--- | Categories with a dagger operator
-class Dagger c where
-  dagger :: c -> c
-
-instance Dagger c => Dagger [c] where
-  dagger = reverse . map dagger
-
-instance Dagger Generator where
-  dagger (F k i j) = F ((-k) `mod` 8) i j
-  dagger x         = x
-
--- | Type class for conversion to matrices
-class Num r => Matrixable c r | c -> r where
-  toMatrix :: Nat n => c -> Matrix n n r
-
-instance Matrixable c r => Matrixable [c] r where
-  toMatrix = foldl' (\acc -> (acc .*.) . toMatrix) (fromInteger 1)
-
-instance Matrixable Generator DCplxRootTwo where
+instance ToMatrix UnrealGen DCplxRootTwo where
   toMatrix (Z a)     = onelevel_matrix (-1) a
   toMatrix (X a b)   = twolevel_matrix (0, 1) (1, 0) a b
   toMatrix (F k a b) = twolevel_matrix (w, x) (y, z) a b where
@@ -185,84 +160,55 @@ instance Matrixable Generator DCplxRootTwo where
  Exact synthesis
  ---------------------------------}
 
--- | Column reduction / state preparation with initial state \(e_i\)
-synthesizeState :: Nat n => Int -> Vector n DCplxRootTwo -> [Generator]
-synthesizeState b = go  . list_of_vector where
-  go :: [DCplxRootTwo] -> [Generator]
-  go vec = case denomexp_decompose vec of
-    (xs, 0) -> zCorr ++ xCorr where
+instance Synthesizable DCplxRootTwo ZCplxRootTwo UnrealGen where
+  initialize e xs = zCorr ++ xCorr where
       a     = case findIndex (/= 0) xs  of
         Just a -> a
-        Nothing -> error $ "Not a unit vector: " ++ show vec
+        Nothing -> error $ "Not a unit vector: " ++ show xs
       zCorr = if xs!!a == -1 then [Z a] else []
-      xCorr = if a == b then [] else [X a b]
-    (xs, k) -> corr ++ go vec' where
-      (a,b)  = case findIndices (\v -> (residue $ (adj v)*v) == 1) xs of
-        (a:b:_) -> (a,b)
-        _       -> error $ "Not a unit vector: " ++ show vec
-      corr   = case residue (xs!!a) == residue (xs!!b) of
+      xCorr = if a == e then [] else [X a e]
+  reduce xs = f $ findIndices (\v -> (residue $ (adj v)*v) == 1) xs where
+    f []        = []
+    f (a:b:xs') = corr ++ f xs' where
+      corr = case residue (xs!!a) == residue (xs!!b) of
         True  -> [F 6 a b]
-        False -> zaCorr ++ zbCorr ++ xCorr ++ [F 7 a b] where
-          zaCorr = if fst (residue2irt2 $ xs!!a) == 3 then [Z a] else []
-          zbCorr = if fst (residue2irt2 $ xs!!b) == 3 then [Z b] else []
-          xCorr  = if snd (residue2irt2 $ xs!!a) == 0 then [X a b] else []
-      [[u,v]] = columns_of_matrix $ mat .*. st where
-        mat :: Matrix Two Two DCplxRootTwo
-        mat = toMatrix . subst f $ dagger corr
-        st :: Matrix Two One DCplxRootTwo
-        st = matrix_of_columns [[vec!!a, vec!!b]]
-        f i
-          | i == a    = 0
-          | i == b    = 1
-          | otherwise = i
-      vec' = map f (zip [0..] vec) where
-        f (c, w)
-          | c == a    = u
-          | c == b    = v
-          | otherwise = w
+        False -> zCorr ++ xCorr ++ [F 7 a b] where
+          zCorr = map Z $ filter (\j -> fst (residue2irt2 (xs!!j)) == 3) [a,b]
+          xCorr = if snd (residue2irt2 (xs!!a)) == 0 then [X a b] else []
+    f  _        = error $ "Not a unit vector: " ++ show xs
       
--- | The Gaussian synthesis algorithm
-synthesize :: Nat n => Matrix n n DCplxRootTwo -> [Generator]
-synthesize m = go (unMatrix m) 0 where
-  go :: (Nat n') => Vector n (Vector n' DCplxRootTwo) -> Integer -> [Generator]
-  go Nil i         = []
-  go (Cons c cs) i = gates ++ go (unMatrix m') (i+1)
-    where
-      gates = synthesizeState (fromInteger i) c
-      m'    = (toMatrix $ dagger gates) .*. (Matrix cs)
-
 {---------------------------------
  Testing
  ---------------------------------}
 
 -- | Random (-1) phase
-genZ :: Int -> Gen Generator
+genZ :: Int -> Gen UnrealGen
 genZ n
   | n <= 0 = error $ "Invalid bound " ++ show n ++ " for random Z"
   | otherwise = do
-    j <- choose (0,n-1)
-    return $ Z j
+    a <- choose (0,n-1)
+    return $ Z a
 
 -- | Random row swap
-genX :: Int -> Gen Generator
+genX :: Int -> Gen UnrealGen
 genX n
   | n <= 1 = error $ "Invalid bound " ++ show n ++ " for random X"
   | otherwise = do
-    i <- choose (0,n-1)
-    j <- choose (0,n-1) `suchThat` (/= i)
-    return $ X i j
+    a <- choose (0,n-1)
+    b <- choose (0,n-1) `suchThat` (/= a)
+    return $ X a b
 
 -- | Random F
-genF :: Int -> Gen Generator
+genF :: Int -> Gen UnrealGen
 genF n
   | n <= 1 = error $ "Invalid bound " ++ show n ++ " for random F"
   | otherwise = do
     k <- choose (0,7)
-    i <- choose (0,n-1)
-    j <- choose (0,n-1) `suchThat` (/= i)
-    return $ F k i j
+    a <- choose (0,n-1)
+    b <- choose (0,n-1) `suchThat` (/= a)
+    return $ F k a b
 
-instance Arbitrary Generator where
+instance Arbitrary UnrealGen where
   arbitrary = sized go where
     go n
       | n < 1 = error $ "Can't generate a generator on " ++ show n ++ " dimensions"
@@ -271,20 +217,14 @@ instance Arbitrary Generator where
     
 instance Nat n => Arbitrary (Matrix n n DCplxRootTwo) where
   arbitrary = liftM toMatrix $ listOf (resize (getn nnat) gen) where
-    gen  :: Gen Generator
+    gen  :: Gen UnrealGen
     gen  = arbitrary
     getn :: NNat n -> Int
     getn = fromInteger . fromNNat 
 
--- | Checks correctness of the synthesis algorithm
-synthesisCorrect :: Nat n => Matrix n n DCplxRootTwo -> Bool
-synthesisCorrect m = m == (toMatrix $ synthesize m)
-
 -- | Test suite
-runTests _ = do
-  quickCheck (synthesisCorrect :: Matrix Two Two DCplxRootTwo -> Bool)
-  quickCheck (synthesisCorrect :: Matrix Four Four DCplxRootTwo -> Bool)
-  quickCheck (synthesisCorrect :: Matrix Eight Eight DCplxRootTwo -> Bool)
-
-gen :: IO (Matrix Four Four DCplxRootTwo)
-gen = generate $ resize 50 arbitrary
+runTests :: () -> IO ()
+runTests () = do
+  quickCheck (prop_correct :: Matrix Two Two DCplxRootTwo -> Bool)
+  quickCheck (prop_correct :: Matrix Four Four DCplxRootTwo -> Bool)
+  quickCheck (prop_correct :: Matrix Eight Eight DCplxRootTwo -> Bool)
