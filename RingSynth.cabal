@@ -18,16 +18,19 @@ library
   ghc-options:         -Wall
   build-depends:       base >=4.12 && <4.13,
                        mtl,
+                       containers,
                        newsynth,
-                       text,
+                       fast-digits,
                        QuickCheck
   hs-source-dirs:      src
   exposed-modules:     Quantum.Synthesis.Exact,
                        Quantum.Synthesis.Gates,
+                       Quantum.Synthesis.Embeddings,
                        Quantum.Synthesis.Integral,
                        Quantum.Synthesis.Real,
                        Quantum.Synthesis.Unreal,
                        Quantum.Synthesis.Gaussian
-  -- other-modules:
+  other-modules:       Utils.Unicode,
+                       Data.Polynomial.Univariate
   -- other-extensions:
   default-language:    Haskell2010
