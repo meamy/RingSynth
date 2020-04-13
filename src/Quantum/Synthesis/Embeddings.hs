@@ -6,10 +6,10 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE FunctionalDependencies #-}
 {-# LANGUAGE ExplicitForAll #-}
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ConstraintKinds #-}
 
@@ -28,6 +28,8 @@ import Unsafe.Coerce
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List
+
+import GHC.Exts (Constraint)
 
 import qualified Utils.Unicode as U
 import Quantum.Synthesis.Ring
@@ -54,9 +56,13 @@ n_plus_n :: Nat n => NNat n -> Plus n n  :~: Times Two n
 n_plus_n _ = unsafeCoerce Refl
 
 -- | Powers of natural numbers
-type family Power n m where
-  Power n Zero      = One
-  Power n (Succ m') = Times n (Power n m')
+type family Power n m 
+type instance Power n Zero     = One
+type instance Power n (Succ m) = Times n (Power n m)
+
+-- | The "Dict trick"
+data Dict (c :: Constraint) where
+  Dict :: forall c. c => Dict c
 
 -- | Propositional ordering
 type family n :<: m :: Bool
@@ -71,6 +77,7 @@ type n < m = (n :<: m) ~ 'True
 {-------------------------------
  Cyclotomics
  -------------------------------}
+
 -- | The /k/th cyclotomic extension of /r/, \(R[\zeta_k]\)
 data Cyclotomic k r = Cyclo !(Map Integer r)
 
@@ -88,6 +95,7 @@ instance (Nat k, Eq r, Num r, Show r) => Show (Cyclotomic k r) where
             | otherwise  = U.sup (U.sub U.zeta (nat @k undefined)) expt
 
 instance (Nat k, Num r) => Num (Cyclotomic k r) where
+
   (+)              = add
   (*)              = mult
   negate (Cyclo p) = Cyclo (Map.map negate p)
@@ -136,7 +144,7 @@ decompose (Cyclo p) = (Cyclo $ divTwo q, Cyclo $ divTwoMinus r) where
  ------------------------}
 
 -- | Class of rings with an /a/-embedding
-class (Nat a, Ring r, Ring r') => Embeddable a r r' where
+class (Nat a, Ring r, Ring r') => Embeddable a r r' | r r' -> a where
   embed :: Nat n => Matrix n n r -> Matrix (Times a n) (Times a n) r' 
   embedElt :: r -> Matrix a a r'
   {- Default implementations -}
@@ -148,35 +156,47 @@ class (Nat a, Ring r, Ring r') => Embeddable a r r' where
  ------------------------}
 
 instance Ring r => Embeddable Two (Cplx r) r where
-  embed :: forall n. Nat n => Matrix n n (Cplx r) -> Matrix (Times Two n) (Times Two n) r
-  embed mat = case n_plus_n (nnat @ n) of
+  embed mat = case n_plus_n (nnatMat mat) of
     Refl -> stack_horizontal (stack_vertical a b) (stack_vertical (-b) a) where
       (a,b) = case commute mat of Cplx a' b' -> (a',b')
 
+instance Ring r => Embeddable Two (Omega r) (Cplx r) where
+  embed mat = case n_plus_n (nnatMat mat) of
+    Refl -> stack_horizontal (stack_vertical a b) (stack_vertical b0 a) where
+      b0    = scalarmult i b
+      (a,b) = case commute mat of
+        Omega a' b' c' d' -> (commute (Cplx d' b'), commute (Cplx c' a'))
+
 instance (Eq r, ComplexRing r) => Embeddable Two (RootTwo r) r where
-  embed :: forall n. Nat n => Matrix n n (RootTwo r) -> Matrix (Times Two n) (Times Two n) r
-  embed mat = case n_plus_n (nnat @ n) of
+  embed mat = case n_plus_n (nnatMat mat) of
     Refl -> stack_horizontal (stack_vertical a b1) (stack_vertical b2 a) where
       (a,b) = case commute mat of RootTwo a' b' -> (a',b')
       b1    = scalarmult (1 + i) b
       b2    = scalarmult (1 - i) b
 
-instance (Nat k, Nat k', Nat k'', Ring r, Eq r, k' ~ Power Two (Succ k), k'' ~ Power Two k)
-      => Embeddable Two (Cyclotomic k' r) (Cyclotomic k'' r) where
-  embed :: forall n. Nat n
-                  => Matrix n n (Cyclotomic k' r)
-                  -> Matrix (Times Two n) (Times Two n) (Cyclotomic k'' r)
-  embed mat = case n_plus_n (nnat @ n) of
+-- | Specific embedding for cyclotomics to deal with some GHC constraints
+embedCyclotomicMat :: forall n k r. (Nat n, Nat k, Eq r, Ring r, Nat (Power Two k), Nat (Power Two (Succ k)))
+                => Matrix n n (Cyclotomic (Power Two (Succ k)) r)
+                -> Matrix (Times Two n) (Times Two n) (Cyclotomic (Power Two k) r)
+embedCyclotomicMat mat = case n_plus_n (nnatMat mat) of
     Refl -> stack_horizontal (stack_vertical a b) (stack_vertical a c) where
       (a,b) = case decompose @k $ commute mat of (a',b') -> (commute a', commute b')
       c     = scalarmult zeta b
-  embedElt :: Cyclotomic k' r -> Matrix Two Two (Cyclotomic k'' r)
-  embedElt e = case decompose @k e of
+
+-- | Specific embedding for cyclotomics to deal with some GHC constraints
+embedCyclotomicPoly :: forall k r. (Nat k, Eq r, Ring r, Nat (Power Two k))
+                => Cyclotomic (Power Two (Succ k)) r
+                -> Matrix Two Two (Cyclotomic (Power Two k) r)
+embedCyclotomicPoly e = case decompose @k e of
     (a,b) -> matrix2x2 (a,zeta*b) (b,a)
 
 {------------------------
  Utilities
  ------------------------}
+
+-- | The dimension of a square matrix as an NNat
+nnatMat :: forall n r. Nat n => Matrix n n r -> NNat n
+nnatMat mat = nnat @n
 
 -- | Things that have a "complex" part
 class ComplexPart a b | a -> b where
@@ -194,6 +214,18 @@ instance Commuting Cplx RootTwo r where
 
 instance Nat n => Commuting (Matrix n n) Cplx r where
   commute mat = Cplx (matrix_map real mat) (matrix_map complex mat)
+
+instance (Nat n, Ring r) => Commuting Cplx (Matrix n n) r where
+  commute (Cplx mr mi) = mr' + mi' where
+    mr' = matrix_map (\a -> Cplx a 0) mr
+    mi' = matrix_map (\a -> Cplx 0 a) mi
+
+instance Nat n => Commuting (Matrix n n) Omega r where
+  commute mat = Omega w x y z where
+    w = matrix_map (\(Omega a _b _c _d) -> a) mat
+    x = matrix_map (\(Omega _a b _c _d) -> b) mat
+    y = matrix_map (\(Omega _a _b c _d) -> c) mat
+    z = matrix_map (\(Omega _a _b _c d) -> d) mat
 
 instance Nat n => Commuting (Matrix n n) RootTwo r where
   commute mat = RootTwo (matrix_map ipart mat) (matrix_map rpart mat) where
@@ -219,10 +251,16 @@ rt2_in_Di :: Matrix Two Two (Cplx Dyadic)
 rt2_in_Di = embedElt (roottwo :: RootTwo (Cplx Dyadic))
 
 rt2_in_D :: Matrix Four Four Dyadic
-rt2_in_D = embed @Two rt2_in_Di
-  
-omega_one_one :: Matrix One One (Cyclotomic Eight Dyadic)
-omega_one_one = column_matrix $ vector_singleton $ zeta
+rt2_in_D = embed rt2_in_Di
 
---omega_in_i :: Matrix Two Two (Cyclotomic Four Dyadic)
---omega_in_i = embedElt (zeta :: Cyclotomic Eight Dyadic)
+omega_in_Di :: Matrix Two Two (Cplx Dyadic)
+omega_in_Di = embedElt (omega :: Omega Dyadic)
+
+omega_in_D :: Matrix Four Four Dyadic
+omega_in_D = embed omega_in_Di
+
+omega_in_Di_alt :: Matrix Two Two (Cplx Dyadic)
+omega_in_Di_alt = embedElt (roottwo * half * (1 + i) :: RootTwo (Cplx Dyadic))
+
+omega_in_D_alt :: Matrix Four Four Dyadic
+omega_in_D_alt = embed omega_in_Di_alt
