@@ -1,0 +1,590 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{braket}
+\usepackage{graphicx}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\theoremstyle{theorem}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{corollary}{Corollary}
+\newtheorem{conjecture}{Conjecture}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+\title{Embeddings of Unitaries over Cyclotomic, Real Root, and Imaginary Root Rings}
+\date{\today}
+\author{Andrew Glaudell}
+\renewcommand{\Re}{\operatorname{Re}}
+\renewcommand{\Im}{\operatorname{Im}}
+\DeclareMathOperator{\tr}{tr}
+\newcommand\scalemath[2]{\scalebox{#1}{\mbox{\ensuremath{\displaystyle #2}}}}
+
+\begin{document}
+	\maketitle
+	
+	This document is a note on methods for embedding unitaries over complicated rings into larger unitaries over simpler ones. We shall attempt to answer the following questions:
+	\begin{enumerate}
+		\item Given some ring $R$ and $q\not\in R$ such that $p[q]=0$ for $p$ a polynomial over $R$, when and how can we embed a unitary over $R[q]$ into a unitary over $R$ with the help of ancillary qubits?
+		\item This note shall focus on the above question with regards to the ring $\mathbb{D}$ as a base due to it's connection with fault-tolerant computing over the Clifford+T gate set. However, we could equally well open this question up to other rings.
+		\item Can we describe \emph{every} ring which can be embedded into $\mathbb{D}$?
+		\item Such an embedding is known for $\mathbb{R}[i]\rightarrow\mathbb{R}$, and it explicitly embeds $n\times n$ unitaries over $\mathbb{R}[i]$ into $\mbox{SO}(2n)\cap \mbox{Sp}(2n,\mathbb{R})$. Can we idenitify some similar symplectic (or symplectic-like) group with these further embeddings?
+		\item These embeddings only deal with the aspect of unitary evolution. Is there some method for extracting measurements within this embedding framework?
+	\end{enumerate}
+	
+	 \section{Definitions}
+	 We shall denote the identity matrix as $I$, leaving the dimensions of this matrix inferrable from context. Let $\mathcal{U}_{n}$ be the group of $n\times n$ unitaries. Given some ring $R$, we denote the group of $n\times n$ unitaries with entries in this ring as $\mathcal{U}_{n}(R)$. Generally speaking, we will be dealing with the ring of integers $\mathbb{Z}$ extended by $\frac{1}{2}$, i.e. the dyadic fractions $\mathbb{D}$. As established in recent work, $\mathcal{U}_{2^n}(\mathbb{D})$ is equivalent to the groupoid of circuits expressible over the gate set $\{X,CX,CCX,H\otimes H\}$ with at most one ancilla. This ring will be further extended by a number of different elements. For example, we will often extend our rings by the power of 2 roots of unity $\zeta_{2^k}$, defined as
+	 \[
+	 	\zeta_{2^k}=\exp\left(\frac{2\pi i}{2^k}\right).
+	 \]
+	  We note that the following instances of this definition are common in fault-tolerant quantum computation via the Clifford+T gate set: $\zeta_{2^0}=1$, $\zeta_{2^1}=-1$, $\zeta_{2^2}=i$, and $\zeta_{2^3}=\omega$. For example, $\mathcal{U}_{2^n}(\mathbb{D}[i])$ corresponds to circuits over $\{X, CX, CCX, S, \omega H\}$, and $\mathcal{U}_{2^n}(\mathbb{D}[\omega])$ corresponds to Clifford +T circuits.
+	  
+	  We shall denote by $\mathbb{F}$ the ring of embedded dyadics, by which we mean the following:
+	  \begin{definition}[Ring of Embedded Dyadics]
+	  	Let $\mathbb{D}$ be the ring of dyadic fractions. Then $\mathbb{F}$ is the ring of embedded dyadics such that there exists some $n'\geq n$ for which $\mathcal{U}_{2^n}(\mathbb{F})$ has a one-to-one mapping to some subgroup of $\mathcal{U}_{2^{n'}}(\mathbb{D})$	\end{definition}
+  Our aim with this program is to attempt to characterize $\mathbb{F}$.
+	  \section{Straightforward Embeddings}
+	  Here, we'll describe some straightforward examples of this emedding procedure for some subrings of embedded dyadics. We'll then move on to some conjecture and musings.
+	  
+	  \subsection{Embeddings of $\zeta_{2^k}$}
+	  It has long been known that there is a method for embedding complex unitaries into real orthogonal matrices with a symplectic form. The construction is straightforward: given a unitary $U$ such that
+	  \[
+	  	U = A + iB
+	  \]
+	  for $A$, $B$ real matrices, we can define the real, orthogonal, symplectic matrix
+	  \[
+	  	U' = \begin{bmatrix}
+	  	A & -B \\
+	  	B & A
+	  	\end{bmatrix}.
+	  \].
+	  That $U'$ is real is obvious -- its orthogonality and symplecticity can be verified by direct computation and using the constraints on $A$ and $B$ as defined by the unitarity of $U$:
+  		\begin{align*}
+  		U^\dagger U &= (A^T-iB^T)(A+iB) = (A^T A + B^T B) + i(A^T B - B^T A) = I\\
+  		&\implies A^T A + B^T B = I \mbox{ and } A^T B - B^T A = 0\\
+  		&\implies \mbox{Orthogonality and Symplecticity of } U'
+    	\end{align*}
+    	That $U'$ is actually an encoded version of $U$ can be verified by checking the composition of two operators.
+    	    	
+    	It turns out that we can actually extend this result to every $\zeta_{2^k}$ relatively easily (that was the observation that inspired this note).
+    	\begin{lemma}
+    		Every element of $\mathcal{U}_{2^n}(\mathbb{D}[\zeta_{2^k}])$ for $n\in\mathbb{N}$ and $k>0$ has an exactly equivalent emedding in $\mathcal{U}_{2^{n+k-1}}(\mathbb{D})$
+    	\end{lemma}
+    	\begin{proof}
+    		By induction. The statement is obviously true for $k=1$ as $-1\in\mathbb{D}$. For $k>1$, assume the statement holds for $k-1$. For any unitary $U\in \mathcal{U}_{2^n}(\mathbb{D}[\zeta_{2^{k}}])$, we can write $U$ as
+    		\[
+    			U = A + \zeta_{2^{k}} B
+    		\]
+    		for $A$, $B$ matrices over $\mathbb{D}[\zeta_{2^{k-1}}]$. Define the operator $U'$ as
+    		\[
+    		U' = \begin{bmatrix}
+    			A & \zeta_{2^{k-1}} B\\
+    			B & A
+    			\end{bmatrix}.
+    		\]
+    		Then $U'\in\mathcal{U}_{2^{n+1}}(\mathbb{D}[\zeta_{2^{k-1}}])$ because unitarity of $U$ enforces
+    		\begin{align*}
+    		U^\dagger U &= (A^\dagger+\zeta_{2^{k}}^\dagger B^\dagger)(A+\zeta_{2^{k}}B) = (A^\dagger A + B^\dagger B) + \zeta_{2^{k}}(A^\dagger B + \zeta_{2^{k-1}}^\dagger B^\dagger A) = I\\
+    		&\implies A^\dagger A + B^\dagger B = I \mbox{ and } A^\dagger B + \zeta_{2^{k-1}}^\dagger B^\dagger A= 0\\
+    		&\implies \mbox{Unitarity of } U'.
+    		\end{align*}
+    		Unitaries $U_1'$ and $U_2'$ must follow the same composition rules as the composition of their corresponding unitaries $U_1$ and $U_2$, which is straightforward to verify:
+    		\begin{align*}
+    		U_1 U_2 &= (A_1 + \zeta_{2^{k}} B_1)(A_2 + \zeta_{2^{k}} B_2)\\
+    		&= (A_1 A_2 + \zeta_{2^{k-1}} B_1 B_2) + \zeta_{2^{k}} (A_1 B_2 + B_1 A_2)\\
+    		U_1' U_2' &= \begin{bmatrix}
+    		A_1 & \zeta_{2^{k-1}} B_1 \\ B_1 & A_1
+    		\end{bmatrix} \begin{bmatrix}
+    		A_2 & \zeta_{2^{k-1}} B_2 \\ B_2 & A_2
+    		\end{bmatrix}\\
+    		&=\begin{bmatrix}
+    		A_1 A_2 + \zeta_{2^{k-1}} B_1 B_2& \zeta_{2^{k-1}} (A_1 B_2 + B_1 A_2) \\ A_1 B_2 + B_1 A_2 & A_1 A_2 + \zeta_{2^{k-1}} B_1 B_2
+    		\end{bmatrix}\\
+    		&\implies (U_1 U_2 = U_3)\iff (U_1' U_2' = U_3')
+    		\end{align*}
+    		Thus, $U'$ is an embedding as described for $U$. By induction, we have the full result.
+    	\end{proof}
+    Interestingly, this lemma alone implies that $n$-qubit Clifford+T circuits have embedded $n+2$-qubit $\{X, CX, CCX, H\otimes H\}$ circuits, i.e. that $\{CX, S, H, T\}_n \subset \{X, CX, CCX, H\otimes H\}_{n+2}$. This could prove useful in developing relations for Clifford+T matrices or for proving the ancilla requirement hypothesis for the real + integral Clifford+T case. More generally, it seems to suggest that the integral Clifford+T operators (basically, Toffoli + Hadamard) are fundamental (entanglement + superposition + non-Cliffordness, seems to make sense), and it might very well be the case that every unitary in the Clifford heirarchy has an embedding into this gate set (notice for example that every diagonal element of the Clifford heirarchy has an embedded representation over these gates -- neat!)
+    
+    We can also identify that the resulting embedding generalizes the symplectic form for the complex-to-real embedding. In the complex case, we have that for a unitary $U$ such that
+    \[
+    	U = A + iB
+    \]
+    with an embedding
+    \[
+    	U' = \begin{bmatrix}
+    	A & -B \\
+    	B & A
+    	\end{bmatrix}
+    \]
+    in the reals, that $U'$ is the intersection of the orthogonal matrices and symplectic matrices with respect to the matrix
+    \[
+    	\Omega = \begin{bmatrix}
+    	0 & -I \\
+    	I & 0
+    	\end{bmatrix}.
+    \]
+    This means that we have
+    \[
+    	U'^T U' = I \quad\mbox{and}\quad U'^T \Omega U' = \Omega.
+    \]
+    Interpreting $\Omega$ as the embedding of a complex unitary into the reals, we see that we can identify $\Omega$ as the complex unit $i$. Indeed, $\Omega^2 = -I$. Taking this veiw, we can see that the symplecticity of $U'$ is merely the statement that the complex unit $i$ commutes with $U$:
+    \[
+      i U = U i \implies \Omega U' = U' \Omega.
+    \]
+    
+   	This notion can be extended to our embeddings for $\zeta_{2^{k}}$ as well. Let us define
+   	\[
+   		\Omega_{2^k} = \begin{bmatrix}
+   		0 & \zeta_{2^{k-1}} I \\ I & 0
+   		\end{bmatrix}.
+   	\]
+   	Clearly, $\Omega_{2^k}^2 = \zeta_{2^{k-1}} I$, and so $\Omega_{2^k}$ behaves like $\zeta_{2^{k}}$. Given some matrix $U\in\mathcal{U}_{2^n}(\mathbb{D}[\zeta_{2^{k}}])$, we then know that the embedding $U'\in\mathcal{U}_{2^{n+1}}(\mathbb{D}[\zeta_{2^{k-1}}])$ should obey the commutation
+   	\[
+   		\zeta_{2^{k}} U = U \zeta_{2^{k}} \implies \Omega_{2^k} U' = U' \Omega_{2^k}.
+   	\]
+   	This fact along with unitarity of $U'$ actually implies the aformentioned structure of the embedding.
+   	\subsection{Embeddings of $\sqrt{q}$}
+    We now turn our attention to embedding matrices which contain the square-root of (positive) elements of $\mathbb{D}$ into matrices over $\mathbb{D}$. We begin by making the observation that $\mathbb{D}[\omega] = \mathbb{D}[i,\sqrt{2}]$. We've already desribed a method for embedding $\mathbb{D}[\omega]$ into $\mathbb{D}[i]$, and so this seems to suggest that we might be able to remove $\sqrt{2}$ through some encoding.
+    
+    We know that $\sqrt{2}\not\in\mathbb{D}[i]$. However, 2 can be factored in $\mathbb{D}[i]$ as
+    \[
+    	2 = (1+i)(1-i).
+    \]
+    Moroever, we see that it is \emph{$\dagger$-factorable} (dagger-factorable) -- it can be written as $2 = \alpha^* \alpha$. Suppose we have a unitary $U\in\mathcal{U}_{2^n}(\mathbb{D}[\sqrt{2}])$. Then we can write $U$ as
+    \[
+    	U = A + \sqrt{2}B
+    \]
+    for $A,B$ matrices over $\mathbb{D}$. Consider the block matrix
+    \[
+    	U' = \begin{bmatrix}
+    	A & (1-i) B\\
+    	(1+i)B & A
+    	\end{bmatrix}.
+    \]
+    As $A^\dagger A + 2 B^\dagger B = I$, we have that $U'$ is unitary. Morover for matrices $U_1$ and $U_2$ with block encodings $U'_1$ and $U'_2$, we see that
+    \[
+    	U_1 U_2 = U_3 \iff U'_1 U'_2 = U'_3
+     \]
+     i.e. they compose identically. Therefore, $U'$ is a unitary encoding for $U$ over the Gaussian Clifford+T matrices. We already know how to encode the Guassian Clifford+T matrices over the Integral Clifford+T matrices, and so this gives us an encoding from $\mathbb{D}[\sqrt{2}]\rightarrow\mathbb{D}$ using 2 ancilla qubits.
+ 
+	Interestingly, our construction can be made more general relatively easily. Suppose we have an integer $p$. By Fermat's two-square theorem, $p$ can be wrtten as the sum of two squares if and only if the prime decomposition of $p$ contains no prime congruent to $3\pmod 4$ raised to an odd power. In such cases, we can write
+	\[
+		p = a^2 + b^2\implies p = (a+ib)(a-ib)
+	\]
+	Thus, we can write any $U = A + \sqrt{p} B\in\mathcal{U}_{2^n}(\mathbb{D}[\sqrt{p}])$ in an encoded form as
+	\[
+		U' = \begin{bmatrix}
+		A & (a-ib) B\\
+		(a+ib) B & A
+		\end{bmatrix}.
+	\]
+	Therefore, any such $U$ can be enoded in $\mathbb{D}$ using only two ancilla qubits.
+	
+	Now, consider the case that $p$ cannot be written as a sum of two squares, but can be written as the sum of three squares $p=a^2 + b^2+c^2$. Per the Legendre three-square theorem, this is the case when $p\neq 4^k \cdot (8 m + 7)$ with $k,m\in\mathbb{N}$. In these cases, we can write
+	\[
+		U' = \begin{bmatrix}
+		A & (\sqrt{a^2+b^2}-ic)B \\
+		(\sqrt{a^2+b^2}+ic) B & A
+		\end{bmatrix}
+	\]
+	where it has already been shown how to construct $\sqrt{a^2+b^2}$. Therefore, every such $U$ can be encoded in $\mathbb{D}$ using only three ancilla qubits.
+	
+	When $p= 4^k \cdot (8 m + 7)$, we know by the Lagrange four-square theorem that $p = a^2+b^2+c^2+d^2$ for integral $a,b,c,d$. As before, we can write
+	\[
+		U' = \begin{bmatrix}
+		A & (\sqrt{a^2+b^2+c^2}-id)B \\
+		(\sqrt{a^2+b^2+c^2}+id) B & A
+		\end{bmatrix}
+	\]
+	where $\sqrt{a^2+b^2+c^2}$ can be constructed as before. Thus, an encoding for $U$ takes only four ancilla qubit. Furthermore, for any positive integer $p$ we have shown that there exists an embedding for $\mathbb{D}[\sqrt{p}]$ in $\mathbb{D}$ using at most four ancillas. This is neat - we can encode unitaries over $\mathbb{D}\left[\exp\left(\frac{2\pi i}{3}\right)\right]$ for example.
+		
+	\section{General Construction}
+	We would like to develop a general framework for these types of embeddings.
+	\begin{definition}
+		Let $\mathcal{R}$ be a ring s.t. $\alpha\not\in \mathcal{R}$, with
+		\[
+			\sum_{j\leq d} c_j \alpha^j = 0
+		\]
+		and $c_j\in \mathcal{R}$. Let $M_1,M_2\in\mathcal{M}_{n\times n}(\mathcal{R}[\alpha])$. Then $\rho:\mathcal{M}_{n\times n}(\mathcal{R}[\alpha])\mapsto \mathcal{M}_{a n\times a n}(\mathcal{R})$ for $a \in \mathbb{N}$ is a called an $a$-embedding function for $\alpha$ in $\mathcal{R}$. We say $M$ has an $a$-embedding in $\mathcal{R}$. The function $\rho$ is by definition a ring homomorphism, i.e.
+		\begin{align*}
+			\rho(M_1 + M_2) &= \rho(M_1) + \rho(M_2)\\
+			\rho(M_1\cdot M_2) &= \rho(M_1)\cdot \rho(M_2)\\
+			\rho(I) &= I.
+		\end{align*}
+		When $\rho$ is applied to some constant $\lambda\in\mathcal{R}[\alpha]$, it is understood that $\rho(\lambda) = \rho(\lambda I)$.
+		\end{definition}
+	\begin{remark}
+		A number of other properties must hold for $\rho$, such as
+		\begin{align*}
+			\rho(0) &= 0\\
+			\rho(-M) &= -\rho(M)\\
+			\rho(M^{-1}) &= \rho(M)^{-1}\;\mbox{for unital }M
+		\end{align*}
+		but these are simply consquences of $\rho$ being homomorphic.
+	\end{remark}
+	\begin{definition}
+		Let $\rho$ be an $a$-embedding function for $\alpha$ in $\mathcal{R}$. For $2^{k+1}>a\geq 2^{k}$, we call $\rho$ a $k$-qubit-embedding function for $\alpha$ in $\mathcal{R}$.
+	\end{definition}
+
+	We now consider how $\rho$ should work operationally. Suppose $\rho$ is an $a$-embedding function for $\alpha$ in $\mathcal{R}$ for an as yet undetermined $a$. Let $\alpha$ be a solution to the polynomial equation over $\mathcal{R}$ of 
+	\[
+		\sum_{j\leq d} c_j \alpha^j = 0.
+	\]
+	Any matrix $M\in\mathcal{M}_{n\times n}(\mathcal{R}[\alpha])$ can thus be written
+	\[
+		M = \sum_{j=0}^{d-1} \alpha^j A_j
+	\]
+	for $A_j\in\mathcal{M}_{n\times n}(\mathcal{R})$. Thus, application of $\rho$ to $M$ would yield
+	\[
+		M' = \rho(M) = \sum_{j=0}^{d-1}\rho(\alpha)^j \cdot \rho(A_j).
+	\]
+	Our stated goal for $\rho$ is that it maps a matrix over $\mathcal{R}[\alpha]$ to one over $\mathcal{R}$. As every $A_j$ is already in this ring, it seems most sensible to essentially map these matrices to themselves. We thus enforce that
+	\[
+		\rho(A_j) = I\otimes A_j
+	\]
+	for $I$ the $a\times a$ identity matrix. The Hilbert space on which $A_j$ acts can be thought of as the Hilbert space for algebra over $\mathcal{R}$. Conversely, the remaining $a$-dimensional Hilbert space can be considered the Hilbert space encoding the behavior of $\alpha$ - we define
+	\[
+		\rho(\alpha) = \Gamma\otimes I
+	\]
+	for some matrix $\Gamma\in\mathcal{M}_{a\times a}(\mathcal{R})$. This is the only possible choice, as we must have
+	\[
+		\Gamma\cdot \rho(B) = \rho(B) \cdot\Gamma
+	\]
+	for any $B\in\mathcal{M}_{n\times n}(\mathcal{R})$. This implies we must have
+	\begin{align*}
+		\sum_{j\leq d} c_j \Gamma^j = 0
+	\end{align*}
+	for such a $\Gamma$, i.e. it must behave like $\alpha$ while having entries over $\mathcal{R}$. We therefore reinterperet $M'$ as
+	\[
+		M' = \sum_{j=0}^{d-1} \Gamma^j \otimes A_j.
+	\]
+	A quick sanity check shows that $\rho(M)=M'$ does indeed yield a homomorphism. We now consider the restrictions that this causes in the case that $M$ is unitary (and thus unital). Direct computation yields
+	\[
+		\sum_{j=0}^{d-1} (\Gamma^\dagger)^j\otimes A_j^\dagger = \sum_{j=0}^{d-1} \rho(\alpha^\dagger)^j \cdot I\otimes A_j^\dagger
+	\]
+	which directly implies that
+	\[
+		\rho(\alpha^\dagger) = \Gamma^\dagger.
+	\]
+	For example, if $\alpha\in\mathbb{R}$, $\Gamma$ must be Hermitian.
+	
+	\section{Root of Unity Embeddings}
+	Let us more carefully consider various cases for $\alpha$ now. Suppose $\alpha$ is a primitive $n$th root of unity where $n$ has the factorization
+	\[
+		n = p_1^{k_1}\cdots p_m^{k_m}
+	\]
+	for primes $p_j$ and $k_j\in\mathbb{N}^+$. It is a standard result in number theory that
+	\[
+		\mathcal{R}\left[\exp\left(\frac{2\pi i}{n}\right)\right] = \mathcal{R}\left[\exp\left(\frac{2\pi i}{p_1^{k_1}}\right),\cdots,\exp\left(\frac{2\pi i}{p_m^{k_m}}\right)\right].
+	\]
+	This fact boils down to direct exponentiation in the left-to-right case and use of Euler's theorem in the right-to-left case. For the same reasoning, we have the following lemma:
+	\begin{lemma}
+		For the primitive $n$th root of unity with
+		\[
+			n = p_1^{k_1}\cdots p_m^{k_m}
+		\]
+		for primes $p_j$ and $k_j\in\mathbb{N}^+$, we can embed unitaries over $\mathcal{R}\left[\exp\left(\frac{2\pi i}{n}\right)\right]$ if and only if we can embed unitaries over $\mathcal{R}\left[\exp\left(\frac{2\pi i}{p_1^{k_1}}\right)\right],\cdots,\mathcal{R}\left[\exp\left(\frac{2\pi i}{p_m^{k_m}}\right)\right]$.
+	\end{lemma}
+	\begin{proof}
+		The if direction is straightforward as we can concatenate the embeddings to produce one for $\mathcal{R}\left[\exp\left(\frac{2\pi i}{n}\right)\right]$. The only if direction follows from the fact that if we have an embedding for $\mathcal{R}\left[\exp\left(\frac{2\pi i}{n}\right)\right]$, we must necessarily have one for $\mathcal{R}\left[\exp\left(\frac{2\pi i}{p_j^{k_j}}\right)\right]$.
+	\end{proof}
+	This means that we need only consider powers of primes to determine which roots of unity can be embedded in a ring. For any embedding for $\alpha$, we also must have
+	\[
+	I = \rho(\alpha \cdot \alpha^\dagger) = \rho(\alpha)\cdot \rho(\alpha^\dagger) = \Gamma \cdot\Gamma^\dagger
+	\]
+	and so $\Gamma$ must be unitary. We've already established that any power-of-two root of unity can be embedded into some $\Gamma_{(1)^{1/2^k}}$, and implied that the third root of unity can be embedded. For example, we can construct the four-embedding for $\exp\left(\frac{2\pi i}{3}\right)$ over $\mathbb{D}$ as
+	\[
+		\Gamma_{(1)^{1/3}} = \rho\left(\exp\left(\frac{2\pi i}{3}\right)\right) = \frac{1}{2}\begin{bmatrix}
+		-1 & 1 & -1 & -1  \\
+		-1 & -1 & -1 & 1 \\
+		1 & 1 & -1 & 1 \\
+		1 & -1 & -1 & -1 \\
+		\end{bmatrix}\otimes I
+	\]
+	which is unitary and satisfies
+	\[
+		\Gamma_{(1)^{1/3}}^2 + \Gamma_{(1)^{1/3}} + I =0.
+	\]
+	We can also construct an eight-embedding for $\exp\left(\frac{2\pi i}{5}\right)$ over $\mathbb{D}$ as
+	\[
+	\Gamma_{(1)^{1/5}} = \rho\left(\exp\left(\frac{2\pi i}{5}\right)\right) = \frac{1}{4}\begin{bmatrix}
+	-1 & 2 & 2 & 1 & 0 & -1 & 1 & -2 \\
+	-2 & -1 & 1 & 2 & -1 & 0 & -2 & 1\\
+	2 & -1 & -1 & 2 & -1 & -2 & 0 & -1\\
+	-1 & 2 & -2 & -1 & -2 & -1 & -1 & 0\\
+	0 & 1 & -1 & 2 & -1 & 2 & 2 & 1 \\
+	1 & 0 & 2 & -1 & -2 & -1 & 1 & 2\\
+	1 & 2 & 0 & 1 & 2 & -1 & -1 & 2\\
+	2 & 1 & 1 & 0 & -1 & 2 & -2 & -1
+	\end{bmatrix}\otimes I
+	\]
+	which is unitary and satisfies
+	\[
+	\Gamma_{(1)^{1/5}} ^4 + \Gamma_{(1)^{1/5}} ^3 +\Gamma_{(1)^{1/5}} ^2 + \Gamma_{(1)^{1/5}}  + I =0.
+	\]
+	My intuition says that the roots of unity $\alpha$ for which we can construct an $a$-embedding for $\alpha$ over $\mathbb{D}$ are primitive $n$th roots of unity for $n=2^k p_1 \cdots p_m$ for $k\in\mathbb{N}$ and each $p_j$ a distinct Fermat prime. For example, a primitive 60th root of unity has a 128-embedding over $\mathbb{D}$ of
+	\[
+		\Gamma_{(1)^{1/60}} = \Gamma_{(1)^{1/2^2}}^3 \otimes \Gamma_{(1)^{1/3}}^2\otimes\Gamma_{(1)^{1/5}}^3.
+	\]
+	The number of ancillas required to encode this space isn't minimal -- certainly, there is at least a 32-embedding: $\mathbb{D}\left[\exp\left(\frac{2\pi i}{60}\right)\right] = \mathbb{D}\left[i,\sqrt{2},\sqrt{3},\sqrt{5},\sqrt{10+2\sqrt{5}}\right]$, where each extension can written in the form $\alpha_k = \sqrt{a^2+b^2}$ for $a,b\in \mathbb{D}[\alpha_0,\cdots,\alpha_{k-1}]$.
+	
+	While it is almost certainly far from optimal, I've found an embedding for both $c_{17}=\cos\left(\frac{2\pi}{17}\right)$ and $s_{17}=\sin\left(\frac{2\pi}{17}\right)$ (some zeros omitted for readability):
+	\begin{align*}
+	    \Gamma_{c_{17}}&= \frac{1}{16}\begin{bmatrix}
+	    -1 & \sqrt{17} & 2\sqrt{17} & \sqrt{34} & 0 & 0 & 0 & 0\\
+	    \sqrt{17} & 11 & -2 & \sqrt{2} & 4\sqrt{2} & -2\sqrt{2} & 0 & 0\\
+	    2\sqrt{17} & -2 & -8 & 2\sqrt{2} & -2\sqrt{2} & 0 & -2\sqrt{2} & 0\\
+	    \sqrt{34} & \sqrt{2} & 2\sqrt{2} & 4 & 0 & 2 & 4 & 0\\
+	    0 & 4\sqrt{2} & -2\sqrt{2} & 0 & -12 & 0 & 0 & -2\sqrt{2}\\
+	    0 & -2\sqrt{2} & 0 & 2 & 0 & 6 & 4 & -4\sqrt{2} \\
+	    0 & 0 & -2\sqrt{2} & 4 &0 & 4 & -4 & 2\sqrt{2}\\
+	    0 & 0 & 0 & 0 & -2\sqrt{2} & -4\sqrt{2} & 2\sqrt{2} & -4
+	    \end{bmatrix}\\
+	    \Gamma_{s_{17}}&=\frac{1}{4\sqrt{2}}\left[\scalemath{0.75}{\begin{array}{cccccccccccccccc}
+	        0 & \sqrt{17} &&&&&&&&&&&&&& \\
+	        \sqrt{17} & 0 & 2 & 1 & \sqrt{2} &&&&&&&&&&& \\
+	        & 2 & 0 & 0 & 0 & 4 & 2 &&&&&&&&& \\
+	        & 1 & 0 & 0 & 0 & 0 & 0 & -2 &&&&&&&& \\
+	        & \sqrt{2} & 0 & 0 & 0 & 0 & -2\sqrt{2} & \sqrt{2} &&&&&&&& \\
+	        && 4 & 0 & 0 & 0 & 0 & 0 &&&&&&&& \\
+	        && 2 & 0 & -2\sqrt{2} & 0 & 0 & 0 & 2 &&&&&&& \\
+	        &&& -2 & \sqrt{2} & 0 & 0 & 0 & 2 & 0 & 2 & \sqrt{2} &&&& \\
+	        &&&&&& 2 & 2 & 0 & 4 & 0 & 0 &&&& \\
+	        &&&&&&& 0 & 4 & 0 & 0 & 0 &&&& \\
+	        &&&&&&& 2 & 0 & 0 & 0 & 0 & 2  & 4 && \\
+	        &&&&&&& \sqrt{2} & 0 & 0 & 0 & 0 & -2\sqrt{2} & 0 && \\
+	        &&&&&&&&&& 2 & -2\sqrt{2} & 0 & 0 & 2 & \\
+	        &&&&&&&&&& 4 & 0 & 0 & 0 & 0 & \\
+	        &&&&&&&&&&&& 2 & 0 & 0 & 4 \\
+	        &&&&&&&&&&&&&& 4 & 0
+	    \end{array}}\right].
+	\end{align*}
+	Because we can embed $\sqrt{17}$, $\sqrt{2}$, and $i$, we therefore have an embedding for a primitive 17th root of unity, in accordance with our above conjecture.
+	
+	\section{Real Embeddings}
+	
+	Let us now focus on the real case. In fact, this is equivalent to considering the complex case, as we have the following lemma:
+	\begin{lemma}
+		A complex number $c=a+i b$ for $a,b\in\mathbb{R}$ has an embedding over $\mathbb{D}$ if and only if $a$ and $b$ have embeddings over $\mathbb{D}$.
+	\end{lemma}
+	\begin{proof}
+		The ``if'' direction is obvious as we have embeddings $A$, $B$, and $\Omega$ for $a$, $b$, and $i$ respectively and can embed $c$ as
+		\[
+		    \rho(c) = I\otimes A \otimes I + \Omega\otimes I \otimes B
+		\]
+		The only if direction follows because $c^\dagger$ must necessarily have an embedding as well, as for $\rho(c)=\Gamma$ we have $\rho(c^\dagger)=\Gamma^\dagger$. Then we have
+		\begin{align*}
+			\rho(a) &= \rho\left(\frac{c+c^\dagger}{2}\right) = \frac{\Gamma + \Gamma^\dagger}{2}\\
+			\rho(b) &= \rho\left(\frac{c-c^\dagger}{2 i}\right) = \frac{\Gamma - \Gamma^\dagger}{2 i} = -i\frac{\Gamma-\Gamma^\dagger}{2}
+		\end{align*}
+		and thus both $a$ and $b$ have embeddings over $\mathbb{D}$.
+	\end{proof}
+	That we can find embeddings for $\exp\left(\frac{2\pi i}{3}\right)$, $\exp\left(\frac{2\pi i}{5}\right)$, $\exp\left(\frac{2\pi i}{2^k}\right)$, and potentially other roots of unity is therefore equivalent to having an embedding for their sines and cosines.
+	
+	\subsection{Real Embeddings and Square Roots}
+	Let us breifly consider the case of real two-embeddings over $\mathbb{D}$. We know that for any real $\alpha$ we must have $\rho(\alpha) = \Gamma$ s.t. $\Gamma$ is Hermitian. Furthermore, since we are embedding into $\mathbb{D}$, we know that $\Gamma\in\mathcal{M}_{2\times 2}(\mathbb{D})$, and thus $\Gamma$ must also be symmetric. Thus, we can write any such $\Gamma$ as
+	\[
+		\Gamma = \frac{1}{2^k}\left(a I + b X + c Z \right)
+	\]
+	for $X$ and $Z$ the standard Pauli matrices and $a,b,c\in\mathbb{Z}$. Squaring $\Gamma$, we have
+	\[
+		\Gamma^2 = \frac{1}{2^{2k}}\left((a^2+b^2+c^2) I + (2a b) X + (2ac) Z\right) = \frac{2a }{2^k}\Gamma + \frac{b^2+c^2-a^2}{2^{2k}} I.
+	\]
+	The left- and right-hand sides of this equation are polynomials over $\mathbb{D}$ in $\Gamma$, and thus we identify that $\Gamma$ solves
+	\[
+		2^{2k} \Gamma^2 - 2^{k+1} a \Gamma - (b^2+c^2-a^2) I = 0
+	\]
+	which is a polynomial over $\mathbb{Z}$. We identify that such a $\Gamma$ would then provide an embedding for $\alpha$ given that $\alpha$ solves
+	\[
+		2^{2k} \alpha^2-2^{k+1} a \alpha-(b^2+c^2-a^2)=0.
+	\]
+	Therefore, any real $\alpha$ for which we have a two-embedding over $\mathbb{D}$ is given by
+	\[
+		\alpha = \frac{a \pm \sqrt{b^2 + c^2}}{2^k}.
+	\]
+	Noting that we already have $\frac{1}{2}$, $\pm 1$ in $\mathbb{D}$, the only values of $a,b,c$ which provide a nontrivial extension are those with $a=0$, $\sqrt{b^2 + c^2}\not \in\mathbb{Z}$. We thus have:
+	\begin{lemma}
+		A real number $\alpha$ has a 2-embedding over $\mathbb{D}$ if and only if $\alpha\in\mathbb{D}[\sqrt{p}]$ for positive integral $p$ such that the prime decomposition of $p$ contains no prime congruent to $3\pmod 4$ raised to an odd power.
+	\end{lemma}
+	\begin{proof}
+		See the discussion above.
+	\end{proof}
+    
+    \begin{corollary}
+        Any $\sqrt{p}$ for positive integral $p$ such that $p\neq 4^k(8m+7)$ for $k,m\in\mathbb{N}$ has a 4-embedding over $\mathbb{D}$.
+    \end{corollary}
+    \begin{proof}
+       Embed $\sqrt{p}$ as
+       \[
+        \begin{bmatrix} \sqrt{a^2+b^2} & c \\ c & -\sqrt{a^2+b^2} \end{bmatrix}
+       \]
+       over $\mathbb{D}[\sqrt{a^2+b^2}]$, then use the two-embedding for $\sqrt{a^2+b^2}$ over $\mathbb{D}$.
+    \end{proof}
+    
+    
+	\begin{lemma}
+        Any integral $p$ that can be decomposed as $p = a^2+b^2 +2c^2$ for integral $a,b,c$ has a 4-embedding over $\mathbb{D}$
+    \end{lemma}
+    \begin{proof}
+        Let
+        \[
+            \Gamma = \begin{bmatrix}
+                a & b & c & c\\
+                b & -a & c & -c\\
+                c & c & -b & -a\\
+                c & -c & -a & b
+            \end{bmatrix}.
+        \]
+        Then $\Gamma\in\mathcal{M}_{4\times 4}(\mathbb{D})$, $\Gamma^2 = p I$ and $\Gamma = \Gamma^\dagger$, so $\Gamma$ embeds $\sqrt{p}$ over $\mathbb{D}$.
+    \end{proof}
+    
+    \begin{lemma}
+        Every integer of the form $p=4^k (8m+7)$ can be written as $p = a^2+b^2+2c^2$.
+    \end{lemma}
+    \begin{proof}
+        If we can find a triple $(a,b,c)$ such that $a^2+b^2+2c^2 = p$ for $p=8m + 7$ given the natural number $m$, then the triple $(a',b',c') = (2^k a,2^k b,2^k c)$ satisfies $(a')^2 +(b')^2 +2\cdot(c')^2 = 4^k (8m+7)$ for any natural number $k$. We therefore focus on the case $p=8m+7$. Consider the squares modulo 8. We have $0^2 = 4^2 = 0\pmod 8$, $1^2 = 3^2 = 5^2 = 7^2 = 1\pmod 8$, and $2^2 = 6^2=4\pmod 8$. The only way to satisfy $a^2+b^2+2c^2 = 7\pmod 8$ is if $a\in\{2\pmod 8,6\pmod 8\}$ and $b,c\in\{1\pmod 8,3\pmod 8,5\pmod 8, 7\pmod 8\}$. We substitute $a=4\alpha + 2$, $b=2\beta+1$, and $c = 2\gamma+1$ into our equation and see we have
+        \begin{align*}
+            8m+7 &= (4\alpha+2)^2 + (2\beta+1)^2+2 (2\gamma+1)^2\\
+            m &= 4\frac{\alpha(\alpha+1)}{2} + \frac{\beta(\beta+1)}{2} + 2\frac{\gamma(\gamma+1)}{2}\\
+            m&= \Delta_1 + 2\Delta_2 + 4\Delta_3
+        \end{align*}
+        where we have the triangular numbers $\Delta_1 = \frac{\beta(\beta+1)}{2}$, $\Delta_2 = \frac{\gamma(\gamma+1)}{2}$, and $\Delta_3 = \frac{\alpha(\alpha+1)}{2}$. By the work of Liouville in extending Gauss's Eureka theorem, we know that every natural number $m$ can be written in this way, and so we can thus always write any $p=4^k(8m+7)$ as the sum $a^2+b^2+2c^2$.
+    \end{proof}
+    
+    \begin{corollary}
+        Every natural number $p$ is such that $\sqrt{p}$ has a 4-embedding over $\mathbb{D}$.
+    \end{corollary}
+    \begin{proof}
+        By the previous three corollaries/lemmas.
+    \end{proof}
+
+	\begin{corollary}
+		Any element of $\mathbb{D}[\sqrt{p}]$ for positive integral $p$ has a:
+		\begin{enumerate}
+			\item 2-embedding over $\mathbb{D}$ if and only if the prime decomposition of $p$ contains no prime congruent to $3\pmod 4$ raised to an odd power
+			\item 4-embedding over $\mathbb{D}$ otherwise
+		\end{enumerate}	
+	    In both cases, the embedding is optimal in the sense that there is no fewer-qubit embeddings for $\sqrt{p}$ over $\mathbb{D}$.
+	\end{corollary}
+	
+	\section{General Two-embeddings}
+	Our goal for the remainder of this note is to try and recast the general problem into one which relies on concatenated two-embeddings. To that end, we describe the following setup. Suppose we have some extension ring $\mathcal{R}=\mathbb{D}[i,\alpha_1,\cdots,\alpha_{k-1}]$ for $\alpha_j$ some real algebraic number. We want to determine which $\alpha_k$ we can embed in this ring. Generically, we have
+	\[
+		\rho(\alpha_k) = \Gamma = \begin{bmatrix}
+		a' & b' \\ c' & d'
+		\end{bmatrix} = a I + b(iX) + c(iY) + d (iZ).
+	\]
+	We have by definition $a',b',c',d'\in \mathcal{R}$, and because we can write
+	\begin{align*}
+		a &=\frac{a' + d'}{2}\\
+		b &= \frac{b' + c'}{2 i}\\
+		c &= \frac{b'-c'}{2}\\
+		d &= \frac{a'-d'}{2 i}
+	\end{align*}
+	we also have $a,b,c,d\in\mathcal{R}$. These can take any value in $\mathcal{R}$ a priori. Our matrix $\Gamma$ is in fact a quaternion (with complex coefficients permitted) as currently written. We can check if $\Gamma$ solves any particular polynomial matrix equation:
+	\begin{align*}
+		\Gamma^2 &= (a^2 + b^2 + c^2 + d^2) I + 2a(b(iX) + c(iY)+ d(iZ))\\
+		 &= 2a \Gamma + (-a^2+b^2+c^2+d^2)I\\
+		 \implies 0 &= \Gamma^2 - 2a \Gamma + (a^2-b^2-c^2-d^2)I
+	\end{align*}
+	which in turn implies that if $\rho(\alpha_k) = \Gamma$, then
+	\[
+		\alpha_k^2 - 2a \alpha + (a^2-b^2-c^2-d^2) = 0.
+	\]
+	However, we know this is not the only restriction on $\Gamma$. Our embedding must respect inverses for unital matrices, and thus we have
+	\[
+		\rho(\alpha_k^\dagger) = \Gamma^\dagger.
+	\]
+	and so $\rho(\alpha_k^\dagger\cdot \alpha_k) = \rho(\alpha_k\cdot \alpha_k^\dagger) = \Gamma^\dagger \cdot\Gamma = \Gamma\cdot \Gamma^\dagger$, i.e. $\Gamma$ is normal. Direct computation yields
+	\[
+		\begin{array}{c}
+			(|a|^2 + |b|^2+|c|^2 + |d|^2) I  + 2\Im[a^\dagger b - c^\dagger d] X + 2\Im[a^\dagger c+b^\dagger d ] Y + 2\Im[a^\dagger d -b^\dagger c] Z\\
+			=\\
+			(|a|^2 + |b|^2+|c|^2 + |d|^2) I  + 2\Im[a^\dagger b + c^\dagger d]X + 2\Im[a^\dagger c-b^\dagger d ] Y + 2\Im[a^\dagger d +b^\dagger c] Z
+		\end{array}
+	\]
+	which in turn implies
+	\begin{align*}
+		\Im[c^\dagger d] &= 0\\
+		\Im[b^\dagger d] &= 0\\
+		\Im[b^\dagger c] &= 0.
+	\end{align*}
+	Thus, we have that
+	\[
+		\arg{b} = \arg{c} = \arg{d} = \phi
+	\]
+	and furthermore,
+	\[
+		\alpha_k = a\pm i\sqrt{b^2+c^2+d^2} = a + \exp\left(i\phi\pm \frac{i \pi}{2}\right)\sqrt{|b|^2+|c|^2+|d|^2}.
+	\]
+	As seen previously, it is easy to use concatenated embeddings to extend the sum over elements to more terms. Thus, we can construct any element of the ring
+	\[
+		\mathbb{D}\left[i,\alpha_1,\cdots,\alpha_{k-1},\sqrt{\sum_{j\leq n} q_j^2}\right]
+	\]
+	for $q_j\in\mathbb{D}\left[i,\alpha_1,\cdots,\alpha_{k-1}\right]$ and $\arg{q_1} = \arg{q_2} = \cdots = \arg{q_n}$. The question then is: Are concatenated two-embeddings able to implement every embedding possible?
+	
+	
+	
+	\section{The Spectra of Embeddings}
+	Let us now consider the spectra of our matrix $\Gamma=\rho(\alpha)$ given that $\alpha$ solves
+	\[
+		\sum_{j\leq d} c_j \alpha^j = 0
+	\]
+	for $c_j\in\mathcal{R}$. Our formalism dictates that
+	\[
+		\sum_{j\leq d} c_j \Gamma^j = 0
+	\]
+	Suppose $\Gamma$ has eigenvalue $\lambda$ with eigenvector $\ket{\lambda}$. Right application of $\ket{\lambda}$ to the above equation implies
+	\[
+		\sum_{j\leq d} c_j \lambda^j \ket{\lambda} = 0 \ket{\lambda}
+	\]
+	and as $\ket{\lambda}$ is not the null vector, we therefore have
+	\[
+		\sum_{j\leq d} c_j \lambda^j = 0.
+	\]
+	Clearly $\lambda$, like $\alpha$, must be a root of our polynomial over $\mathcal{R}$. $\Gamma$'s spectrum must consist of some subset of the solutions to this polynomial, where the multiplicity of the eigenvalues need not be one. Because $\Gamma$ is normal, we have that its singular value decomposition must be
+	\[
+		\Gamma = V \Lambda V^\dagger
+	\]
+	for a unitary matrix $V$ and $\Lambda$ a diagonal matrix whose nonzero entries are solutions to the polynomial. The $j$th column of $V$ is the eigenvector corresponding to the $j$th eigenvalue of $\Gamma$.
+	
+	\subsection{Cayley-Hamilton Theory}
+	Our observations here are no coincidence. In fact, they are aspects of a rich field of matrix theory spanning hundreds of years. Cayley-Hamilton theory states that given some $k\times k$ square matrix $A$ over some commutative ring $\mathcal{R}$ with characteristic equation $p(\lambda)=\det (A-\lambda I)$, then $A$ solves $p(A)=0$. Moreover, if $A$ is over a field, then the minimal polynomial for $A$ over that field divides its characteristic polynomial.
+	
+	Suppose the minimal polynomial for some real number $\alpha$ over $\mathbb{Q}$ is $p$. Cayley-Hamilton theory would imply that any $\Gamma$ that satisfies $p(\Gamma)=0$ must have eigenvalues corresponding to all of the zeros of $p$ (multiplicity may be larger than 1). However, as $\Gamma$ is normal, we know there exists a unitary $U$ and diagonal matrix $D$ which has as entries the eigenvalues of $\Gamma$ such that
+	\[
+	    \Gamma = U D U^\dagger.
+	\]
+	Furthermore, because $\alpha$ is real, we know $\Gamma$ must be Hermitian. $\Gamma$ is only Hermitian if $D=D^\dagger$, i.e. $D$ must be real. Thus, the \emph{only} $\alpha$ for which there exists an embedding are those for whom their minimal polynomial $p$ has only real roots.
+	
+	\section{Measurement}
+	Here, we'll discuss measurement outcomes and determine how we can take measurements so as to sample from the same distribution as the original computation we are encoding. We'll begin by considering the case where we know we can implement circuits exactly over the ring $\mathcal{R}$, but cannot do so over $\mathcal{R}[\alpha]$ for $\alpha$ the solution to the minimal polynomial
+	\[
+		\sum_{j\leq d} c_j \alpha^j
+	\]
+	over $\mathcal{R}$. As described previously, this can be rectified by finding some matrix $\Gamma$ which solves an identical polynomial equation over $\mathcal{R}$ This allows us to embed some unitary $U$ over the more complex ring as
+	\[
+		U' = \rho(U) = \rho\left(\sum_{j<d}\alpha^j A_j\right) = \sum_{j<d}\Gamma^j\otimes  A_j.
+	\]
+	As discussed previously, $\Gamma$ must have the eigenvalue $\alpha$ with corresponding eigenvector $\ket{\alpha}$. Suppose we have some state $\ket{\phi}$ to which we wish to apply $U$. If we are supplied the ancillary state $\ket{\alpha}$, we can do so exactly using $U'$:
+	\[
+		U' (\ket{\alpha}\otimes \ket{\phi}) = \sum_{j<d} \Gamma^j \ket{\alpha}\otimes A_j \ket{\phi} = \sum_{j<d} \alpha^j \ket{\alpha} \otimes A_j\ket{\phi} = \ket{\alpha}\otimes U\ket{\phi}
+	\]
+	Conveniently, given that we have the SVD of $\Gamma$ as $V\Lambda V^\dagger$ where the topmost eigenvalue of $\Lambda$ is $\alpha$, we have $\ket{\alpha} = V \ket{0}$. Now, $V$ may not have entries in the ring which we are encoding in, and therefore might \emph{not} be exactly implementable over our gate set. We can of course synthesize this approximately using standard techniques. While this would seem to suggest that we've merely kicked the can down the road in avoiding approximation earlier, we note that (1) the state $\ket{\alpha}$ as a resource has fixed size, but may be used to implement arbitrarily large circuits, (2) is going to be (significantly) easier to approximate than arbitrarily large unitaries, and (3) may be \emph{re-used} so that in principle, a single $\ket{\alpha}$ need only be synthesized once to be able to perform an arbitrarily large number of computations in $\mathcal{R}[\alpha]$. Moreover, if a given piece of hardware has access to measurements in the eigenbasis of $\Gamma$ directly, one can probabalistically measure in this basis until producing an eigenvector with associated eigenvalue $\alpha$ -- this process will take a time linear in the size of $\Gamma$, and so for small $\Gamma$ may be efficient.
+	
+	We now consider the case where we have multiple extensions $\alpha_1,\cdots,\alpha_k$. Any unitary $U$ over $\mathbb{D}[\alpha_1,\cdots,\alpha_k]$ may be written as
+	\[
+		U = \sum_{\vec{j}<\vec{d}}\alpha_1^{j_1}\cdots \alpha_k^{j_k} A_{j_1\cdots j_k}
+	\]
+	where $\vec{j}$ is a vector of natural numbers with $\ell$th component $\vec{j}_\ell$, $\vec{d}$ is a mixed radix vector of natural numbers whose $\ell$th component $\vec{d}_\ell$ is the degree of a polynomial equation for $\alpha_\ell$ over $\mathbb{D}[\alpha_1,\cdots \alpha_{\ell-1}]$, the $<$ sign means $\vec{j}_\ell<\vec{d}_\ell$ for all $\ell$, and $A_{j_1\cdots j_k}$ is a matrix over $\mathbb{D}$. An embedding for $U$ is given by
+	\[
+		U' = \rho(U) =  \sum_{\vec{j}<\vec{d}}\rho(\alpha_1)^{j_1}\cdots \rho(\alpha_k)^{j_k} \rho(A_{j_1\cdots j_k}) =  \sum_{\vec{j}<\vec{d}}(\Gamma_1^{j_1}\cdots \Gamma_k^{j_k})\otimes A_{j_1\cdots j_k}
+	\]
+	where we have defined $\Gamma_\ell = \rho(\alpha_\ell)$ and made use of the ring-homomorphic behavior of $\rho$. We make the key observation that because $\rho$ is ring-homomorphic, we must have $\Gamma_\ell \Gamma_m = \Gamma_m \Gamma_\ell$ for all $\ell, m$. Furthermore, each $\Gamma_\ell$ is normal. Therefore, we can find simultaneous eigenvectors $\ket{\lambda_1\cdots \lambda_k}$ with eigenvalues $\lambda_\ell$ for the matrix $\Gamma_\ell$. At least one of these eigenvalues $\lambda_\ell$ must be $\alpha_\ell$, and so we know there must be some state $\ket{\alpha_1\cdots \alpha_k}$ which is a simultenous eigenvector for $\Gamma_1, \cdots, \Gamma_k$ with eigenvalues $\alpha_1,\cdots,\alpha_k$. As before, we therefore can implement $U$ using $U'$ as
+	\[
+		U' (\ket{\alpha_1\cdots\alpha_k}\otimes \ket{\phi}) = \ket{\alpha_1\cdots\alpha_k}\otimes U \ket{\phi}.
+	\]
+ \end{document}
