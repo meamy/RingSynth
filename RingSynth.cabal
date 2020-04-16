@@ -25,12 +25,23 @@ library
   hs-source-dirs:      src
   exposed-modules:     Quantum.Synthesis.Exact,
                        Quantum.Synthesis.Gates,
+                       Quantum.Synthesis.TypeArith,
                        Quantum.Synthesis.Embeddings,
                        Quantum.Synthesis.Integral,
                        Quantum.Synthesis.Real,
                        Quantum.Synthesis.Unreal,
-                       Quantum.Synthesis.Gaussian
-  other-modules:       Utils.Unicode,
-                       Data.Polynomial.Univariate
+                       Quantum.Synthesis.Gaussian,
+                       Utils.Unicode
+  other-modules:       Data.Polynomial.Univariate
   -- other-extensions:
+  default-language:    Haskell2010
+
+executable Eisenstein
+  main-is:             Eisenstein.hs
+  buildable:           True
+  ghc-options:         -Wall
+  hs-source-dirs:      docs
+  build-depends:       base >=4.12 && <4.13,
+                       RingSynth,
+                       newsynth
   default-language:    Haskell2010

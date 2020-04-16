@@ -47,6 +47,7 @@ class Permutation repr => Integral repr where
 -- | The Real Clifford + T operators \(U_n(\mathbb{D[\sqrt{2}]})\)
 class TwoPermutation repr => Real repr where
   h :: Int -> repr
+  ch :: Int -> Int -> repr
 
 -- | The Unreal Clifford + T operators \(U_n(\mathbb{D}[i\sqrt{2}])\)
 class TwoPermutation repr => Unreal repr where
@@ -108,7 +109,8 @@ instance Integral repr => Integral (Daggered -> repr) where
   hh i j _b = hh i j
 
 instance Real repr => Real (Daggered -> repr) where
-  h i _b = h i
+  h i _b    = h i
+  ch i j _b = ch i j
 
 instance (Gaussian repr, Dagger repr) => Gaussian (Daggered -> repr) where
   wh i False = wh i
@@ -151,6 +153,7 @@ instance Integral String where
 
 instance Real String where
   h i    = "H " ++ (show i)
+  ch i j = "CH " ++ (show i) ++ " " ++ (show j)
 
 instance Unreal String where
   f i    = "F " ++ (show i)
@@ -166,6 +169,47 @@ instance Circuit String where
 instance Dagger String where
   dagger a = "(" ++ a ++ ")^*"
 
+{-----------------------------
+ Matrices
+ -----------------------------}
+
+{-
+instance Nat n => Gate (Matrix n n r)
+
+instance (PowerOfTwo n, Ring r) => Permutation (Matrix n n r) where
+  x i       = 
+  cx i j    = "CNOT " ++ (show i) ++ " " ++ (show j)
+  ccx i j k = "Toffoli " ++ (show i) ++ " " ++ (show j) ++ " " ++ (show k)
+
+instance TwoPermutation String where
+  z i = "Z " ++ (show i)
+
+instance FourPermutation String where
+  s i = "S " ++ (show i)
+
+instance EightPermutation String where
+  t i = "T " ++ (show i)
+
+instance Integral String where
+  hh i j  = "H\x2297H " ++ (show i) ++ " " ++ (show j)
+
+instance Real String where
+  h i    = "H " ++ (show i)
+
+instance Unreal String where
+  f i    = "F " ++ (show i)
+
+instance Gaussian String where
+  wh i    = "\x03C9H " ++ (show i)
+
+instance CliffordT String
+
+instance Circuit String where
+  a @@ b = a ++ "; " ++ b
+
+instance Dagger String where
+  dagger a = "(" ++ a ++ ")^*"
+-}
 {-------------------------------
  Examples
  -------------------------------}

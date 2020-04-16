@@ -12,6 +12,7 @@
 {-# LANGUAGE ExplicitForAll #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE Rank2Types #-}
 
 {-|
 Module      : Embeddings
@@ -23,56 +24,15 @@ Portability : portable
 
 module Quantum.Synthesis.Embeddings where
 
-import Data.Type.Equality
-import Unsafe.Coerce
 import Data.Map (Map)
 import qualified Data.Map as Map
 import Data.List
-
-import GHC.Exts (Constraint)
+import Data.Type.Equality
 
 import qualified Utils.Unicode as U
-import Quantum.Synthesis.Ring
 import Quantum.Synthesis.Matrix
-
-{------------------------
- Coercions & utilities for type-level natural arithmetic
- ------------------------}
-
--- | Commutativity of Plus
-plus_commutes :: (Nat n, Nat m) => NNat n -> NNat m -> Plus n m :~: Plus m n
-plus_commutes _ _ = unsafeCoerce Refl
-
--- | Commutativity of Times
-times_commutes :: (Nat n, Nat m) => NNat n -> NNat m -> Times n m :~: Times m n
-times_commutes _ _ = unsafeCoerce Refl
-
--- | One is a unit with respect to Times
-times_unit :: Nat n => NNat n -> Times n One :~: n
-times_unit _ = unsafeCoerce Refl
-
--- | Plus n n is Times Two n
-n_plus_n :: Nat n => NNat n -> Plus n n  :~: Times Two n
-n_plus_n _ = unsafeCoerce Refl
-
--- | Powers of natural numbers
-type family Power n m 
-type instance Power n Zero     = One
-type instance Power n (Succ m) = Times n (Power n m)
-
--- | The "Dict trick"
-data Dict (c :: Constraint) where
-  Dict :: forall c. c => Dict c
-
--- | Propositional ordering
-type family n :<: m :: Bool
-
-type instance _ :<: Zero              = 'False
-type instance Zero :<: (Succ n')      = 'True
-type instance (Succ n') :<: (Succ m') = n' :<: m'
-
--- | Type constraint ordering
-type n < m = (n :<: m) ~ 'True
+import Quantum.Synthesis.TypeArith
+import Quantum.Synthesis.Ring
 
 {-------------------------------
  Cyclotomics
@@ -102,7 +62,7 @@ instance (Nat k, Num r) => Num (Cyclotomic k r) where
   abs              = id
   signum           = id
   fromInteger 0    = Cyclo Map.empty
-  fromInteger i    = Cyclo $ Map.singleton 0 (fromInteger i)
+  fromInteger j    = Cyclo $ Map.singleton 0 (fromInteger j)
 
 -- | Retrieve the degree of the polynomial
 degree :: Cyclotomic k r -> Integer
@@ -190,13 +150,17 @@ embedCyclotomicPoly :: forall k r. (Nat k, Eq r, Ring r, Nat (Power Two k))
 embedCyclotomicPoly e = case decompose @k e of
     (a,b) -> matrix2x2 (a,zeta*b) (b,a)
 
+-- | Temporary, embed \(\sqrt{a^2 + b^2}\) in a complex ring containing a and b
+embedRoot :: ComplexRing r => r -> r -> Matrix Two Two r
+embedRoot a b = matrix2x2 (0, a - i*b) (a + i*b, 0)
+
 {------------------------
  Utilities
  ------------------------}
 
 -- | The dimension of a square matrix as an NNat
 nnatMat :: forall n r. Nat n => Matrix n n r -> NNat n
-nnatMat mat = nnat @n
+nnatMat _mat = nnat @n
 
 -- | Things that have a "complex" part
 class ComplexPart a b | a -> b where
@@ -233,7 +197,7 @@ instance Nat n => Commuting (Matrix n n) RootTwo r where
     rpart (RootTwo _a b) = b
 
 instance forall n k r. (Ring r, Nat n, Nat k) => Commuting (Matrix n n) (Cyclotomic k) r where
-  commute mat = Cyclo $ Map.fromAscList [(i, collectExpt i) | i <- [0..(nat @k undefined)]] where
+  commute mat = Cyclo $ Map.fromAscList [(j, collectExpt j) | j <- [0..(nat @k undefined)]] where
     collectExpt :: Integer -> Matrix n n r
     collectExpt y = matrix_map (\(Cyclo p) -> Map.findWithDefault 0 y p) mat
 
@@ -244,6 +208,7 @@ instance forall n k r. (Ring r, Nat n, Nat k) => Commuting (Cyclotomic k) (Matri
 {--------------------------
  Testing & examples
  --------------------------}
+
 i_in_D :: Matrix Two Two Dyadic
 i_in_D = embedElt (i :: Cplx Dyadic)
 
@@ -264,3 +229,9 @@ omega_in_Di_alt = embedElt (roottwo * half * (1 + i) :: RootTwo (Cplx Dyadic))
 
 omega_in_D_alt :: Matrix Four Four Dyadic
 omega_in_D_alt = embed omega_in_Di_alt
+
+tmp :: Matrix Four Four Dyadic
+tmp = matrix4x4 (-half, half, -half, -half)
+                (-half, -half, -half, half)
+                (half, half, -half, half)
+                (half, -half, -half, -half)

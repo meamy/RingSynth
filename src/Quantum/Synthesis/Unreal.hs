@@ -80,7 +80,7 @@ instance (Eq a, HalfRing a) => HalfRing (CplxRootTwo a) where
   half = CplxRootTwo half 0
 
 instance (Adjoint a, Ring a) => Adjoint (CplxRootTwo a) where
-  adj (CplxRootTwo a b) = CplxRootTwo a (-(adj b))
+  adj (CplxRootTwo a b) = CplxRootTwo (adj a) (-(adj b))
 
 instance (Eq a, NormedRing a) => NormedRing (CplxRootTwo a) where
   norm (CplxRootTwo a b) = (norm a)^2 + 2 * (norm b)^2

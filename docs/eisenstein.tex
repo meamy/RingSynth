@@ -1,0 +1,172 @@
+\documentclass{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{braket}
+\usepackage{qcircuit}
+
+\title{Eisenstein-Dyadic embeddings}
+
+\begin{document}
+\maketitle
+
+The purpose of this document is to fully work out a realistic example of integral embeddings. In particular, we will be looking at embeddings of unitaries over the ring $\mathbb{D}[\omega := e^{2\pi i/3}]$ into the integral Clifford+$T$ operators, i.e. unitaries over $\mathbb{D}$. We call this the Eisenstein case, in analogy with Eisenstein integers $\mathbb{Z}[\omega]$.
+
+Sidenote: most of the arithmetic is checked in the \texttt{eisenstein.hs} file.
+
+\section{The embedding}
+
+As per Andrew's note we know there exists a $4$-embedding of $\omega$ into $\mathbb{D}$. In particular, we have
+\[
+	\Gamma = \frac{1}{2}
+	\begin{bmatrix} 
+		-1 & 1 & -1 & -1 \\
+		-1 & -1 & -1 & 1 \\
+		1 & 1 & -1 & 1 \\
+		1 & -1 & -1 & -1
+	\end{bmatrix}
+\]
+where we can verify that, for instance,
+\begin{align*}
+	\Gamma^3 &= I \\
+	\Gamma^2 + \Gamma + I &= 0 \\
+	\Gamma^\dagger \Gamma = \Gamma\Gamma^\dagger &= I.
+\end{align*}
+The above embedding is obtained by writing
+\[
+	\omega = \frac{-1 + i\sqrt{3}}{2}.
+\]
+and taking the tower of embeddable extensions $\mathbb{D}[i, \frac{-1 + i\sqrt{3}}{2}]$. In particular, we have the embedding of $\frac{-1 + i\sqrt{3}}{2}$ into $\mathbb{D}[i]$ where
+\[
+	\rho\left(\frac{-1 + i\sqrt{3}}{2}\right) 
+	= \frac{1}{2}\left(-I + iX + iY + iZ\right) 
+	= \frac{1}{2}\begin{bmatrix}  -1 + i & 1 + i \\ -1 + i & -1 -i \end{bmatrix}
+\]
+
+While this gives a more space-efficient embedding, it's conceivable that by constructing a larger embedding, it may be possible to more efficiently approximate eigenvectors. For that reason, we give an $8$-embedding into the tower $\mathbb{D}[i, \sqrt{2}, \sqrt{3}]$ below.
+\[
+	\Gamma' = \frac{1}{2}
+	\begin{bmatrix}
+		-1 & 1 & 0 & 1 & 0 & 0 & 0 & -1 \\
+		-1 & -1 & 1 & 0 & 0 & 0 & -1 & 0 \\
+		0 & -1 & -1 & 1 & 0 & -1 & 0 & 0 \\
+		-1 & 0 & -1 & -1 & 1 & 0 & 0 & 0 \\
+		0 & 0 & 0 & 1 & -1 & 1 & 0 & 1 \\
+		0 & 0 & 1 & 0  & -1 & -1 & 1 & 0 \\
+		0 & 1 & 0 & 0 & 0 & -1 & -1 & 1 \\
+		1 & 0 & 0 & 0 & -1 & 0 & -1 & -1
+	\end{bmatrix}
+\]
+
+\section{$\omega$-phase gates}
+
+Perhaps the simplest interesting gate over $\mathbb{D}[\omega]$ is a third root of unity phase gate
+\[
+	\begin{bmatrix} 
+		1 & 0  \\
+		0 & \omega
+	\end{bmatrix}.
+\]
+We will call this gate $E$ for the remainder of this note. In analogy to Clifford+$T$, Clifford+$E$ gives a universal set of quantum gates. Embedding $E$ in $\mathbb{D}$ gives
+\[
+	E' = 
+	\frac{1}{2}
+	\begin{bmatrix}
+		2&0&0&0&0&0&0&0\\
+		0&-1&0&1&0&-1&0&-1\\
+		0&0&2&0&0&0&0&0\\
+		0&-1&0&-1&0&-1&0&1\\
+		0&0&0&0&2&0&0&0\\
+		0&1&0&1&0&-1&0&1\\
+		0&0&0&0&0&0&2&0\\
+		0&1&0&-1&0&-1&0&-1
+	\end{bmatrix}     
+\]
+
+We can synthesize a circuit over $\mathbb{D}$ for $E'$ by running the exact synthesis algorithm. In particular, we find that
+\[
+	E' = (-1)_1(-1)_3 (H\otimes H)_{1,3,5,7}(-1)_7X_{3,7},
+\]
+which can be implemented over the integral generators as
+\[
+  \Qcircuit @C=1em @R=.5em @!R {
+        & \qw & \targ & \ctrl{2} & \gate{X} & \ctrl{1} & \gate{X} & \qw & \qw & \qw \\
+	& \qw & \ctrl{-1} & \ctrl{1} & \qw & \multigate{1}{H\otimes H} & \qw & \gate{Z} & \qw & \qw \\
+	& \qw & \ctrl{-2} & \gate{Z} & \qw & \ghost{H\otimes H} & \gate{X} & \ctrl{-1} & \gate{X} & \qw
+  }
+\]
+As a circuit over Clifford+$T$, we can implement the above $E'$ circuit with $12$ $T$ gates and no ancillas.
+
+\section{Measurement}
+
+Recall that given an eigenvector $\ket{\alpha}$ of $\Gamma$,
+\[
+	U'(\ket{\alpha}\otimes \ket{\phi}) = \ket{\alpha}\otimes U\ket{\phi}.
+\]
+In the specific case of $E'=I\otimes \ket{0}\bra{0} + \Gamma\otimes \ket{1}\bra{1}$ and some eigenvector $\Gamma\ket{\omega} = \omega\ket{\omega}$ we can verify that
+\begin{align*}
+	E'(\ket{\omega}\otimes \ket{\phi})
+		&= \ket{\omega} \otimes (\ket{0}\bra{0})\ket{\phi} + \omega\ket{\omega}\otimes (\ket{1}\bra{1})\ket{\phi} \\
+		&=\ket{\omega}\otimes (\ket{0}\bra{0} + \omega\ket{1}\bra{1})\ket{\phi} \\
+		&=\ket{\omega}\otimes E\ket{\phi}
+\end{align*}
+
+As a further sanity check, we can verify that the measurement outcomes of a circuit using $E$ gates non-trivially are correct:
+\[
+	\ket{\psi} = HEH\ket{0} = \frac{1}{2}\begin{bmatrix} 1 + \omega \\ 1 - \omega \end{bmatrix},
+\]
+where $|\frac{1}{2}(1 + \omega)|^2 = \frac{1}{4}$ and $|\frac{1}{2}(1 - \omega)|^2 = \frac{3}{4}$. The embedding of $HEH$ likewise gives
+\[
+	(I\otimes H)E'(I\otimes H)\ket{\alpha}\otimes\ket{0} 
+		= \ket{\alpha}\otimes HEH\ket{0} 
+		= \ket{\alpha} \otimes \frac{1}{2}\begin{bmatrix} 1 + \omega & 1 - \omega \end{bmatrix}^T
+\]
+which is of course separable and produces the same measurement distribution.
+
+\section{Approximating a resource state}
+
+We now turn our attention to the approximation of $\ket{\alpha}$. We can verify that the following gives a normalized set of eigenvectors of $\Gamma$:
+\[\left\{
+	\frac{1}{\sqrt{3}}\begin{bmatrix} \omega \\ \omega^\dagger \\ 0 \\ 1 \end{bmatrix},
+	\frac{1}{\sqrt{3}}\begin{bmatrix} -\omega^\dagger \\ \omega \\ 1 \\ 0 \end{bmatrix},
+	\frac{1}{\sqrt{3}}\begin{bmatrix} \omega^\dagger \\ \omega \\ 0 \\ 1 \end{bmatrix},
+	\frac{1}{\sqrt{3}}\begin{bmatrix} -\omega \\ \omega^\dagger \\ 1 \\ 0 \end{bmatrix}
+\right\}\]
+with eigenvalues $\omega, \omega, \omega^\dagger, \omega^\dagger$, respectively. In case it is helpful we can write an orthonormal basis for the eigenspace as
+\[\left\{
+	\frac{1}{\sqrt{3}}\begin{bmatrix} \omega \\ \omega^\dagger \\ 0 \\ 1 \end{bmatrix},
+	\frac{i}{\sqrt{6}}\begin{bmatrix} 1 \\ 1 \\ -(2\omega + 1) \\ 1 \end{bmatrix},
+	\frac{1}{\sqrt{3}}\begin{bmatrix} \omega^\dagger \\ \omega \\ 0 \\ 1 \end{bmatrix},
+	\frac{-i}{\sqrt{6}}\begin{bmatrix} 1 \\ 1 \\ 2\omega + 1 \\ 1 \end{bmatrix}
+\right\}\]
+giving the decomposition $\Gamma=U\Lambda U^\dagger$
+
+As expected, the eigenvectors can't be written over $\mathbb{D}$ (or for that matter, $\mathbb{D}[i,\sqrt{2}]$) and hence must be approximated. While we don't have a general purpose method of efficiently approximating multi-qubit unitaries over $\mathbb{D}[i,\sqrt{2}]$ or various restricted subgroups, we can reduce the problem of approximating $\ket{\omega}$ to that of approximating single-qubit unitaries over $\mathbb{D}[i,\sqrt{2}]$ by writing $U$ as a sequence of $CNOT$ gates and single-qubit unitaries. In particular, we can construct such a circuit using at most $3$ $CNOT$ gates and $15$ single-qubit unitaries \cite{ref}. Note that the construction in \cite{ref} can be written with at most $19$ $R_Z$ rotations, giving an approximation overhead factor of $19$ over a single $E$ gate, plus a small constant number of $T$ gates. Roughly speaking, this scheme schould outperform the direct approximation of $E$ gates when the number of $E$ gates is greater than $19$, assuming two extra qubits are available.
+
+We can reduce this overhead if we're given efficient access to a specific type of $3$-qubit entanglement known as $W$-type entanglement. Specifically, given the $3$-qubit resource state
+\[
+	\ket{W} = \frac{\ket{100} + \ket{010} + \ket{001}}{\sqrt{3}},
+\]
+we can prepare the state $\frac{1}{\sqrt{3}}\begin{bmatrix} \omega & \omega^\dagger & 0 & 1 \end{bmatrix}^T$ with only $2$ $E$ gates. To see how this construction works, first we swap $\ket{100}$ with $\ket{000}$ and $\ket{010}$ with $\ket{011}$, then discard the extra $\ket{0}$. Next we see that
+\[
+	\omega^{(1\oplus x)(1\oplus y) + 2(1\oplus x)y} = \omega^{(1\oplus x\oplus y) + 2y}
+\]
+hence we only need $2$ $E$ gates and two $CNOT$ gates to complete the state preparation. The resulting circuit is shown below:
+\[
+  \Qcircuit @C=1em @R=.5em @!R {
+        & \qw & \qw &  \targ & \gate{X} & \ctrl{2} & \targ & \gate{E} & \targ & \gate{X} & \qw \\
+	\lstick{\ket{W}} & \qw & \gate{X} & \ctrl{-1} & \gate{X} & \ctrl{1} & \ctrl{-1} & \gate{E^\dagger} & \ctrl{-1} & \qw & \qw \\
+	 & \qw & \gate{X} & \ctrl{-2} & \gate{X} & \targ & \qw {|} & \lstick{\ket{0}}
+  }
+\]
+Given a perfect $\ket{W}$ state, for a total error of at most $\epsilon$, we need to approximate $E$ and $E^\dagger$ to with $\epsilon/2$ accurracy, increasing the number of $T$ gates to approximate a single $E$ gate by a constant factor of $\sim2$. Note that for a circuit with $>2$ $E$ gates, assuming access to a perfect $\ket{W}$ state and 2 extra qubits, this scheme should outperform direct implementations in terms of $T$-count.
+
+\begin{thebibliography}{9}
+
+\bibitem{ref} Farrokh Vatan and Colin Williams, \emph{Optimal Quantum Circuits for General Two-Qubit Gates}. arXiv:quant-ph/0308006.
+
+\end{thebibliography}
+
+\end{document}
