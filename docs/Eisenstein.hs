@@ -13,107 +13,27 @@ module Main where
 
 import Prelude hiding (Integral, Real)
 
-import Data.Type.Equality
-import Data.List
-
 import Quantum.Synthesis.Matrix
-import Quantum.Synthesis.Ring hiding (omega)
+import Quantum.Synthesis.Ring
 
-import qualified Utils.Unicode as U
-
+import Quantum.Synthesis.MoreRings
 import Quantum.Synthesis.Exact
 import Quantum.Synthesis.Gates
 import Quantum.Synthesis.Integral
-import Quantum.Synthesis.Unreal
 import Quantum.Synthesis.Embeddings
-import Quantum.Synthesis.TypeArith
-
--- ---------------------------------------
--- ** Rings with a cube root of unity
-
--- | A ring that has a cube root of unity
-class Ring r => EisensteinRing r where
-  omega :: r
-
--- ---------------------------------------
--- ** The ring \(R[\omega]\)
-
--- | The ring \(R[\omega]\) where \(R\) is any ring and
---   \(\omega = e^{2\pi i /3}\) is a primitive 3rd root
---   of unity. The value 'Eisen' /a/ /b/ represents
---   the complex number \(\omega a + b\)
-data Eisenstein r = Eisen !r !r deriving (Eq)
-
-instance (Show r, Eq r, Ring r) => Show (Eisenstein r) where
-  showsPrec p (Eisen 0 0) = showString "0"
-  showsPrec p (Eisen a b) = showParen (p >= 11) $ showString str where
-    str = intercalate " + " $ showA ++ showB
-    showA
-      | a == 0    = []
-      | a == 1    = [U.omega]
-      | otherwise = [U.omega ++ "*" ++ showsPrec 11 a ""]
-    showB
-      | b == 0    = []
-      | otherwise = [showsPrec 11 b ""]
-
-instance Num r => Num (Eisenstein r) where
-  (Eisen a b) + (Eisen c d) = Eisen (a + c) (b + d)
-  (Eisen a b) * (Eisen c d) = Eisen a' b' where
-    a' = a*d + b*c - a*c
-    b' = b*d - a*c
-  negate (Eisen a b)            = Eisen (-a) (-b)
-  signum _                      = undefined
-  abs _                         = undefined
-  fromInteger j                 = Eisen 0 (fromInteger j)
-
-instance (Ring r, Adjoint r) => Adjoint (Eisenstein r) where
-  adj (Eisen a b) = Eisen (-a) (b - a)
-
-instance HalfRing r => HalfRing (Eisenstein r) where
-  half = Eisen 0 half
-
-instance Ring r => EisensteinRing (Eisenstein r) where
-  omega = Eisen 1 0
-
-instance (Eq r, EisensteinRing r) => EisensteinRing (CplxRootTwo r) where
-  omega = CplxRootTwo omega 0
-
-instance Nat n => Commuting (Matrix n n) Eisenstein r where
-  commute mat = Eisen amat bmat where
-    amat = matrix_map (\(Eisen a _) -> a) mat
-    bmat = matrix_map (\(Eisen _ b) -> b) mat
-
--- | The ring \(D[\omega]\)
-type DEisen = Eisenstein Dyadic
-
--- ---------------------------------------
--- ** Embeddings
-
-instance EisensteinRing (Matrix Four Four Dyadic) where
-  omega = scalarmult half mat where
-    mat = matrix4x4 (-1,1,-1,-1) (-1,-1,-1,1) (1,1,-1,1) (1,-1,-1,-1)
-
-instance Embeddable Four DEisen Dyadic where
-  embed :: forall n. Nat n => Matrix n n DEisen -> Matrix (Four `Times` n) (Four `Times` n) Dyadic
-  embed = withProof (times_is_nat (nnat @Four) (nnat @n)) go where
-    go :: Nat (Four `Times` n) => Matrix n n DEisen -> Matrix (Four `Times` n) (Four `Times` n) Dyadic
-    go mat = o*(lift a) + lift b where
-      lift = tensor (1 :: Matrix Four Four Dyadic)
-      (Eisen a b) = commute mat
-      o = tensor (omega :: Matrix Four Four Dyadic) (1 :: Matrix n n Dyadic)
 
 -- ---------------------------------------
 -- ** Worked out example
 
 -- | \(\omega\) in \mathbb{D}
 gamma :: Matrix Four Four Dyadic
-gamma = omega
+gamma = embed . column_matrix . vector_singleton $ (eisen :: DEisen)
 
 -- *** Cube root of unity phase gate
 
 -- | The gate diag(1, \(\omega\))
 eGate :: Matrix Two Two DEisen
-eGate = matrix2x2 (1, 0) (0, omega)
+eGate = matrix2x2 (1, 0) (0, eisen)
 
 -- | The embedded E gate diag(1, \(\omega\))
 eGate' :: Matrix Eight Eight Dyadic
@@ -126,23 +46,23 @@ twolevel_circuit = synthesize eGate'
 -- *** Eigenvectors and eigenvalues
   
 l1,l2,l3,l4 :: DEisen
-l1 = omega
-l2 = omega
-l3 = adj omega
-l4 = adj omega
+l1 = eisen
+l2 = eisen
+l3 = adj eisen
+l4 = adj eisen
 
 v1,v2,v3,v4 :: Matrix Four One DEisen
-v1 = column_matrix $ vector [omega, adj omega, 0, 1]
-v2 = column_matrix $ vector [-(adj omega), omega, 1, 0]
-v3 = column_matrix $ vector [adj omega, omega, 0, 1]
-v4 = column_matrix $ vector [-omega, adj omega, 1, 0]
+v1 = column_matrix $ vector [eisen, adj eisen, 0, 1]
+v2 = column_matrix $ vector [-(adj eisen), eisen, 1, 0]
+v3 = column_matrix $ vector [adj eisen, eisen, 0, 1]
+v4 = column_matrix $ vector [-eisen, adj eisen, 1, 0]
 
 -- | orthogonal eigenvectors
 v1',v2',v3',v4' :: Matrix Four One (CplxRootTwo DEisen)
 v1' = matrix_map (\a -> CplxRootTwo a 0) v1
-v2' = scalarmult (half*iroottwo) $ column_matrix $ vector [1, 1, -(1 + 2*omega), 1]
+v2' = scalarmult (half*iroottwo) $ column_matrix $ vector [1, 1, -(1 + 2*eisen), 1]
 v3' = matrix_map (\a -> CplxRootTwo a 0) v3
-v4' = scalarmult (half*iroottwo) $ column_matrix $ vector [-1, -1, -(1 + 2*omega), -1]
+v4' = scalarmult (half*iroottwo) $ column_matrix $ vector [-1, -1, -(1 + 2*eisen), -1]
 
 lift :: Ring r => Matrix n m r -> Matrix n m (Eisenstein r)
 lift = matrix_map (\a -> Eisen 0 a)

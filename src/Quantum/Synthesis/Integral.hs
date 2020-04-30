@@ -16,30 +16,20 @@ Portability : portable
 module Quantum.Synthesis.Integral where
 
 import Data.List
-import Data.Bits
 
 import Control.Monad
+
+import Test.QuickCheck
 
 import Quantum.Synthesis.Matrix
 import Quantum.Synthesis.Ring
 import Quantum.Synthesis.MultiQubitSynthesis
 
-import Test.QuickCheck
-
 import Quantum.Synthesis.Exact
+import Quantum.Synthesis.MoreRings
 
-{---------------------------------
- Rings
- ---------------------------------}
-
--- | This instance recontextualizes DenomExp as the 2-lde
-instance DenomExp Dyadic where
-  denomexp = snd . decompose_dyadic
-  denomexp_factor a k = (fromInteger $ 1 `shiftL` (fromInteger k)) * a
-
-{---------------------------------
- Generators
- ---------------------------------}
+-- * Generators
+-- ---------------------------------------
 
 -- | The generators of the integral circuit group
 data DyadicGen =
@@ -66,9 +56,8 @@ instance ToMatrix DyadicGen Dyadic where
       | x == y                                           = 1
       | otherwise                                        = 0
 
-{---------------------------------
- Exact synthesis
- ---------------------------------}
+-- * Synthesis algorithm
+-- ---------------------------------------
 
 instance Synthesizable Dyadic Integer DyadicGen where
   initialize e xs = zCorr ++ xCorr where
@@ -77,15 +66,15 @@ instance Synthesizable Dyadic Integer DyadicGen where
       Nothing -> error $ "Not a unit vector: " ++ show xs
     zCorr = if (xs!!a) == -1 then [Z a] else []
     xCorr = if a == e then [] else [X e a]
-  reduce xs = f $ findIndices (\v -> v^2 `mod` 4 == 1) xs where
+  reduce xs = f $ findIndices (\v -> (v*v) `mod` 4 == 1) xs where
     f []            = []
     f (a:b:c:d:xs') = zCorr ++ [HH a b c d] ++ f xs' where
       zCorr = map Z . filter (\j -> (xs!!j) `mod` 4 == 3) $ [a,b,c,d]
     f _             = error $ "Not a unit vector: " ++ show xs
 
-{---------------------------------
- Testing
- ---------------------------------}
+-- * Arbitrary instances
+-- ---------------------------------------
+
 -- | Random (-1) phase
 genZ :: Int -> Gen DyadicGen
 genZ n

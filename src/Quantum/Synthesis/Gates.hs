@@ -2,6 +2,11 @@
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE PostfixOperators #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
 
 {-|
 Module      : Gates
@@ -14,6 +19,15 @@ Portability : portable
 module Quantum.Synthesis.Gates where
 
 import Prelude hiding (Real, Integral)
+import Data.Bits
+import Data.List
+import Control.Monad
+
+import Quantum.Synthesis.Matrix
+import Quantum.Synthesis.Ring
+
+
+import Quantum.Synthesis.MoreRings
 
 {-----------------------------
  (Polymorphic) Gates
@@ -173,43 +187,98 @@ instance Dagger String where
  Matrices
  -----------------------------}
 
-{-
+-- | Convert a type-level power of 2 to a term-level exponent
+natLog :: forall n. Nat n => Integer
+natLog = case log2 (nat @n undefined) of
+  Just x  -> x
+  Nothing -> error "Not a power of 2"
+
+-- | Convenience functions
+make :: (Nat n, Nat m) => (Int -> Int -> r) -> Matrix n m r
+make f = matrix_map (uncurry f) matrix_enum
+
+-- | General kronecker product. Takes an integer specifying the number
+--   of qubits, an ordered list of /m/ qubits that are being acted on
+--   non-trivially, and a /2^m/ by /2^m/ matrix
+kron :: (Nat n, Nat m, Num r) => Integer -> [Int] -> ((Int,Int) -> r) -> Matrix n m r
+kron qubits indices mat = make (\i j -> maybe 0 id . liftM mat $ go i j) where
+  go :: Int -> Int -> Maybe (Int, Int)
+  go i j = foldM f (0,0) [0..(fromInteger qubits)-1] where
+    f (a,b) q = case elemIndex q indices of
+      Just q' -> Just (a .|. reduce q q' i, b .|. reduce q q' j)
+      Nothing -> if valueAt q i == valueAt q j then Just (a,b) else Nothing
+  reduce q q' i = if valueAt q i then 1 `shiftL` (qubits' - 1 - q') else 0
+  valueAt q i = testBit i $ (fromInteger qubits)-1-q
+  qubits' = length indices
+
 instance Nat n => Gate (Matrix n n r)
 
-instance (PowerOfTwo n, Ring r) => Permutation (Matrix n n r) where
-  x i       = 
-  cx i j    = "CNOT " ++ (show i) ++ " " ++ (show j)
-  ccx i j k = "Toffoli " ++ (show i) ++ " " ++ (show j) ++ " " ++ (show k)
+instance (Nat n, Ring r) => Permutation (Matrix n n r) where
+  x i = kron (natLog @n) [i] f where
+    f (a,b) = if a /= b then 1 else 0
+  cx i j = kron (natLog @n) [i,j] f where
+    f (a,b)
+      | testBit a 1 /= testBit b 1 = 0
+      | testBit a 1 && (testBit a 0 /= testBit b 0) = 1
+      | not (testBit a 1) && (testBit a 0 == testBit b 0) = 1
+      | otherwise = 0
+  ccx i j k = kron (natLog @n) [i,j,k] f where
+    f (a,b)
+      | testBit a 2 /= testBit b 2 || testBit a 1 /= testBit b 1 = 0
+      | testBit a 2 && testBit a 1 && (testBit a 0 /= testBit b 0) = 1
+      | not (testBit a 2 && testBit a 1) && (testBit a 0 == testBit b 0) = 1
+      | otherwise = 0
 
-instance TwoPermutation String where
-  z i = "Z " ++ (show i)
+instance (Nat n, Ring r) => TwoPermutation (Matrix n n r) where
+  z i = kron (natLog @n) [i] f where
+    f (0,0) = 1
+    f (1,1) = -1
+    f _     = 0
 
-instance FourPermutation String where
-  s i = "S " ++ (show i)
+instance (Nat n, ComplexRing r) => FourPermutation (Matrix n n r) where
+  s j = kron (natLog @n) [j] f where
+    f (0,0) = 1
+    f (1,1) = i
+    f _     = 0
 
-instance EightPermutation String where
-  t i = "T " ++ (show i)
+instance (Nat n, ComplexRing r, OmegaRing r) => EightPermutation (Matrix n n r) where
+  t j = kron (natLog @n) [j] f where
+    f (0,0) = 1
+    f (1,1) = omega
+    f _     = 0
 
-instance Integral String where
-  hh i j  = "H\x2297H " ++ (show i) ++ " " ++ (show j)
+instance (Nat n, HalfRing r) => Integral (Matrix n n r) where
+  hh i j = kron (natLog @n) [i] f where
+    f (a,b)
+      | testBit a 0 && testBit b 0 && testBit a 1 && testBit b 1 = half
+      | testBit a 0 && testBit b 0 = -half
+      | testBit a 1 && testBit b 1 = -half
+      | otherwise = half
 
-instance Real String where
-  h i    = "H " ++ (show i)
+instance (Nat n, RootHalfRing r) => Real (Matrix n n r) where
+  h i = kron (natLog @n) [i] f where
+    f (1,1) = -roothalf
+    f _     = roothalf
 
-instance Unreal String where
-  f i    = "F " ++ (show i)
+instance (Nat n, HalfRing r, CplxRootTwoRing r) => Unreal (Matrix n n r) where
+  f i = kron (natLog @n) [i] g where
+    g (0,0) = half + half*iroottwo
+    g (1,1) = -half + half*iroottwo
+    g _     = half
 
-instance Gaussian String where
-  wh i    = "\x03C9H " ++ (show i)
+instance (Nat n, HalfRing r, ComplexRing r) => Gaussian (Matrix n n r) where
+  wh j = kron (natLog @n) [j] f where
+    f (1,1) = -(1+i)*half
+    f _     = (1+i)*half
 
-instance CliffordT String
+instance (Nat n, ComplexRing r, RootHalfRing r) => CliffordT (Matrix n n r)
 
-instance Circuit String where
-  a @@ b = a ++ "; " ++ b
+instance (Nat n, Ring r) => Circuit (Matrix n n r) where
+  a @@ b = b .*. a
 
-instance Dagger String where
-  dagger a = "(" ++ a ++ ")^*"
--}
+instance (Nat n, Adjoint r) => Dagger (Matrix n n r) where
+  dagger a = adj a
+
 {-------------------------------
  Examples
  -------------------------------}

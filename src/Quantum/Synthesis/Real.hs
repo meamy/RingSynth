@@ -16,29 +16,21 @@ Portability : portable
 module Quantum.Synthesis.Real where
 
 import Data.List
-
 import Control.Monad
+
+import Test.QuickCheck
 
 import Quantum.Synthesis.Matrix
 import Quantum.Synthesis.Ring
 import Quantum.Synthesis.MultiQubitSynthesis
 
-import Test.QuickCheck
-
 import Quantum.Synthesis.Exact
 
-{---------------------------------
- Rings
- ---------------------------------}
 
--- | The type of residues \(\mathbb{Z}[\sqrt{2}]/2\mathbb{Z\)
-type Z2RootTwo = RootTwo Z2
-  
-{---------------------------------
- Generators
- ---------------------------------}
+-- * Generators
+-- ---------------------------------------
 
--- | The generators of the integral circuit group
+-- | The generators of the real circuit group
 data RealGen =
     Z !Int
   | X !Int !Int
@@ -54,9 +46,8 @@ instance ToMatrix RealGen DRootTwo where
   toMatrix (H a b) =
     twolevel_matrix (roothalf, roothalf) (roothalf, -roothalf) a b
 
-{---------------------------------
- Exact synthesis
- ---------------------------------}
+-- * Synthesis algorithm
+-- ---------------------------------------
 
 instance Synthesizable DRootTwo ZRootTwo RealGen where
   initialize e xs = zCorr ++ xCorr where
@@ -72,9 +63,9 @@ instance Synthesizable DRootTwo ZRootTwo RealGen where
     f []          = []
     f ((a,b):xs') = (H a b):(f xs')
 
-{---------------------------------
- Testing
- ---------------------------------}
+-- * Arbitrary instances
+-- ---------------------------------------
+
 -- | Random (-1) phase
 genZ :: Int -> Gen RealGen
 genZ n

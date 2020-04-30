@@ -1,3 +1,4 @@
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
@@ -24,80 +25,14 @@ Portability : portable
 
 module Quantum.Synthesis.Embeddings where
 
-import Data.Map (Map)
-import qualified Data.Map as Map
-import Data.List
 import Data.Type.Equality
+import qualified Data.Map as Map
 
-import qualified Utils.Unicode as U
 import Quantum.Synthesis.Matrix
-import Quantum.Synthesis.TypeArith
 import Quantum.Synthesis.Ring
 
-{-------------------------------
- Cyclotomics
- -------------------------------}
-
--- | The /k/th cyclotomic extension of /r/, \(R[\zeta_k]\)
-data Cyclotomic k r = Cyclo !(Map Integer r)
-
-instance (Nat k, Eq r, Num r, Show r) => Show (Cyclotomic k r) where
-  show (Cyclo p)
-    | Map.null p = "0"
-    | otherwise  = intercalate " + " $ map showTerm (Map.assocs p)
-    where showTerm (expt, a)
-            | expt == 0  = show a
-            | a == 1     = showExpt expt
-            | a == -1    = show "-" ++ showExpt expt
-            | otherwise  = show a ++ showExpt expt
-          showExpt expt
-            | expt == 1  = U.sub U.zeta (nat @k undefined)
-            | otherwise  = U.sup (U.sub U.zeta (nat @k undefined)) expt
-
-instance (Nat k, Num r) => Num (Cyclotomic k r) where
-
-  (+)              = add
-  (*)              = mult
-  negate (Cyclo p) = Cyclo (Map.map negate p)
-  abs              = id
-  signum           = id
-  fromInteger 0    = Cyclo Map.empty
-  fromInteger j    = Cyclo $ Map.singleton 0 (fromInteger j)
-
--- | Retrieve the degree of the polynomial
-degree :: Cyclotomic k r -> Integer
-degree (Cyclo p) = maybe 0 (fromIntegral . fst) . Map.lookupMax $ p
-
--- | The cyclotomic polynomial \(\zeta_k\)
-zeta :: (Nat k, Ring r) => Cyclotomic k r
-zeta = Cyclo $ Map.singleton 1 1
-
--- | Constant polynomial
-constant :: (Nat k, Ring r) => r -> Cyclotomic k r
-constant = Cyclo . Map.singleton 0
-
--- | Multiply by a scalar
-scale :: (Nat k, Ring r) => r -> Cyclotomic k r -> Cyclotomic k r
-scale a (Cyclo p) = Cyclo $ Map.map (a*) p
-
--- | Add two univariate polynomials
-add :: (Nat k, Num r) => Cyclotomic k r -> Cyclotomic k r -> Cyclotomic k r
-add (Cyclo p) (Cyclo q) = Cyclo $ Map.unionWith (+) p q
-
--- | Multiply two univariate polynomials
-mult :: forall k r. (Nat k, Num r) => Cyclotomic k r -> Cyclotomic k r -> Cyclotomic k r
-mult (Cyclo p) (Cyclo q) = Map.foldrWithKey (\expt a -> add (mulTerm expt a)) 0 p where
-  mulTerm expt a      = Cyclo . Map.mapKeys (plusModK expt) $ Map.map (* a) q
-  plusModK expt expt' = (expt + expt') `mod` (nat @k undefined)
-
--- | Decomposes an element of \(R[\zeta_{2^k}]\) as \(R[\zeta_{2^{k-1}}]:R[\zeta_{2^k}]\)
-decompose :: (Nat k, Eq r, Num r)
-          => Cyclotomic (Power Two (Succ k)) r
-          -> (Cyclotomic (Power Two k) r, Cyclotomic (Power Two k) r)
-decompose (Cyclo p) = (Cyclo $ divTwo q, Cyclo $ divTwoMinus r) where
-  (q, r)      = Map.partitionWithKey (\l _a -> l `mod` 2 == 0) p
-  divTwo      = Map.mapKeysMonotonic (`div` 2)
-  divTwoMinus = Map.mapKeysMonotonic (\l -> (l - 1) `div` 2)
+import Quantum.Synthesis.TypeArith
+import Quantum.Synthesis.MoreRings
 
 {------------------------
  Embeddings
@@ -133,6 +68,18 @@ instance (Eq r, ComplexRing r) => Embeddable Two (RootTwo r) r where
       (a,b) = case commute mat of RootTwo a' b' -> (a',b')
       b1    = scalarmult (1 + i) b
       b2    = scalarmult (1 - i) b
+
+instance (Eq r, HalfRing r) => Embeddable Four (Eisenstein r) r where
+  embed :: forall n. Nat n => Matrix n n (Eisenstein r) -> Matrix (Four `Times` n) (Four `Times` n) r
+  embed mat = withProof (times_is_nat (nnat @Four) (nnatMat mat)) go mat where
+    go :: Nat (Four `Times` n) => Matrix n n (Eisenstein r) -> Matrix (Four `Times` n) (Four `Times` n) r
+    go mat = (tensor gamma (1 :: Matrix n n r))*(lift a) + lift b where
+      (Eisen a b) = commute mat
+      lift = tensor (1 :: Matrix Four Four r)
+      gamma = matrix4x4 (-half,half,-half,-half)
+                        (-half,-half,-half,half)
+                        (half,half,-half,half)
+                        (half,-half,-half,-half)
 
 -- | Specific embedding for cyclotomics to deal with some GHC constraints
 embedCyclotomicMat :: forall n k r. (Nat n, Nat k, Eq r, Ring r, Nat (Power Two k), Nat (Power Two (Succ k)))
@@ -204,6 +151,11 @@ instance forall n k r. (Ring r, Nat n, Nat k) => Commuting (Matrix n n) (Cycloto
 instance forall n k r. (Ring r, Nat n, Nat k) => Commuting (Cyclotomic k) (Matrix n n) r where
   commute (Cyclo p) = Map.foldr (+) 0 $ Map.mapWithKey go p where
     go expt = matrix_map (\a -> Cyclo $ Map.singleton expt a)
+
+instance Nat n => Commuting (Matrix n n) Eisenstein r where
+  commute mat = Eisen amat bmat where
+    amat = matrix_map (\(Eisen a _) -> a) mat
+    bmat = matrix_map (\(Eisen _ b) -> b) mat
 
 {--------------------------
  Testing & examples

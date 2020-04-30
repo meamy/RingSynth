@@ -24,9 +24,8 @@ import Data.List
 import Quantum.Synthesis.Matrix
 import Quantum.Synthesis.Ring
 
-{---------------------------------
- Auxiliary type classes
- ---------------------------------}
+-- * Matrix-like data
+-- ---------------------------------------
 
 -- | Type of things that can be converted to a matrix
 class Ring r => ToMatrix g r | g -> r where
@@ -35,9 +34,8 @@ class Ring r => ToMatrix g r | g -> r where
 instance ToMatrix g r => ToMatrix [g] r where
   toMatrix = foldl' (\acc -> (acc .*.) . toMatrix) (fromInteger 1)
 
-{---------------------------------
- Exact synthesis
- ---------------------------------}
+-- * Generic exact synthesis algorithm
+-- ---------------------------------------
 
 -- | Class of unitaries over the ring /r/ synthesizable as a word
 --   over the generators in /g/. Implements a generic exact synthesis algorithm
@@ -66,11 +64,9 @@ class (DenomExp r, ToMatrix g r, Adjoint r, WholePart r z) => Synthesizable r z 
         gates = synthesizeState (fromInteger j) c
         m'    = (adj $ toMatrix gates) .*. (Matrix cs)
 
-{---------------------------------
- Testing
- ---------------------------------}
-
 -- | Checks correctness of synthesis
-prop_correct ::
-  (Nat n, Eq r, Adjoint r, Synthesizable r z g) => Matrix n n r -> Bool
+prop_correct :: (Nat n, Eq r, Adjoint r, Synthesizable r z g) => Matrix n n r -> Bool
 prop_correct m = m == (toMatrix $ synthesize m)
+
+-- * Instances
+-- ---------------------------------------

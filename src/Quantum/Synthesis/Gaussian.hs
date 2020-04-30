@@ -17,55 +17,21 @@ Portability : portable
 module Quantum.Synthesis.Gaussian where
 
 import Data.List
-
 import Control.Monad
+
+import Test.QuickCheck
 
 import Quantum.Synthesis.Matrix
 import Quantum.Synthesis.Ring
 import Quantum.Synthesis.MultiQubitSynthesis
-import Quantum.Synthesis.EuclideanDomain
 
-import Test.QuickCheck
-
+import Quantum.Synthesis.MoreRings
 import Quantum.Synthesis.Exact
 
-{---------------------------------
- Rings
- ---------------------------------}
+-- * Generators
+-- ---------------------------------------
 
--- | Wrapper for newsynth's DComplex to give custom instances
---   for DenomExp and Residue
-newtype DGaussian = DGaussian DComplex
-  deriving (Eq, Num, HalfRing, ComplexRing, Adjoint)
-
-instance Show DGaussian where
-  show (DGaussian d) = show d
-
-instance WholePart DGaussian ZComplex where
-  from_whole = DGaussian . from_whole
-  to_whole (DGaussian d) = to_whole d
-
--- | Copy from Integral -- needed to efficiently
-instance DenomExp Dyadic where
-  denomexp = snd . decompose_dyadic
-  denomexp_factor a k = a * 2^k
-
--- | This instance recontextualizes DenomExp as the (1+i)-lde
-instance DenomExp DGaussian where
-  denomexp (DGaussian a) = if k > 0 && euclid_divides (1 + i) b then 2*k - 1 else 2*k
-    where (b, k) = denomexp_decompose a
-  denomexp_factor a k
-    | k `mod` 2 == 0 = a * 2^(k `div` 2)
-    | otherwise      = a * (1 + i) * 2^((k-1) `div` 2)
-
--- | The type of residues \(\mathbb{Z}[i]/2\mathbb{Z}\)
-type Z2Complex = Cplx Z2
-  
-{---------------------------------
- Generators
- ---------------------------------}
-
--- | The generators of the integral circuit group
+-- | The generators of the Gaussian circuit group
 data GaussianGen =
     S !Int !Int
   | X !Int !Int
@@ -84,20 +50,20 @@ instance ToMatrix GaussianGen DGaussian where
     [[w, x], [y, z]] = rows_of_matrix $ mat^k
     mat = matrix2x2 ((1+i)*half, (1+i)*half) ((1+i)*half, -(1+i)*half)
 
-{---------------------------------
- Exact synthesis
- ---------------------------------}
+-- * Synthesis algorithm
+-- ---------------------------------------
 
 instance Synthesizable DGaussian ZComplex GaussianGen where
   initialize e xs = sCorr ++ xCorr where
       a     = case findIndex (/= 0) xs  of
-        Just a  -> a
+        Just a' -> a'
         Nothing -> error $ "Not a unit vector: " ++ show xs
       sCorr = case (xs!!a) of
         v | v == 1 -> []
           | v == i -> [S 1 a]
           | v == -1 -> [S 2 a]
           | v == -i -> [S 3 a]
+          | otherwise -> error $ "Not a unit vector: " ++ show xs 
       xCorr = if a == e then [] else [X a e]
   reduce xs = f $ findIndices (\v -> residue (v*v) == 1) xs where
     f []        = []
@@ -105,9 +71,9 @@ instance Synthesizable DGaussian ZComplex GaussianGen where
       sCorr = map (S 3) . filter (\j -> residue (xs!!j) == i) $ [a,b]
     f _             = error $ "Not a unit vector: " ++ show xs
 
-{---------------------------------
- Testing
- ---------------------------------}
+-- * Arbitrary instances
+-- ---------------------------------------
+
 -- | Random i phase
 genS :: Int -> Gen GaussianGen
 genS n
