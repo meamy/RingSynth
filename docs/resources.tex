@@ -1,0 +1,624 @@
+\documentclass{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage{amsfonts}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{braket}
+\usepackage{qcircuit}
+\usepackage{cleveref}
+\usepackage{mathdots}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\theoremstyle{theorem}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}{Lemma}
+\newtheorem{proposition}{Proposition}
+\newtheorem{corollary}{Corollary}
+\newtheorem{conjecture}{Conjecture}
+\theoremstyle{remark}
+\newtheorem{remark}{Remark}
+
+\title{Concrete Resource Estimates for Embedded Unitaries}
+
+\begin{document}
+\maketitle
+
+The purpose of this note is to explore concrete implementations of embeddings as circuits in order to assess their resource requirements. As the purpose of this note is practical-minded, it's also a dumping ground for potential applications.
+
+We take the approach of embedding some $\alpha\notin\mathbb{D}[i, \sqrt{2}]$ into $\mathbb{D}[i, \sqrt{2}]$, as this should in the majority of cases give the most efficient embedding into an \emph{a priori} fault-tolerant gate set. Note that in the non-fault-tolerant case the situation is different, as we generally don't care about the particular ring we're working in and have access to gates generically over $\mathbb{C}$, so embedding is a bit of a moot point apparantly.
+
+For any embedding we have two main ingredients we need to analyze: implementation of embedded unitaries as circuits over $\mathbb{D}[i, \sqrt{2}]$, and implementation of the resource state needed to run the embedding, as per previous discussions. We first look at the problem of implementing resources states generically (i.e., for any embedding), then look at the implementation of various embedded unitaries.
+
+\[
+	\Qcircuit @C=.5em @R=0.5em @!R {
+		& \multigate{2}{U} & \qw \\
+		\vdots &  & \vdots \\
+		& \ghost{U} & \qw
+	}
+	\qquad
+	\raisebox{-1.5em}{$\equiv$}
+	\qquad
+	\Qcircuit @C=.5em @R=0.5em @!R {
+		& \qw & \qw & \qw & \multigate{3}{\rho(U)} & \qw & \qw & \qw & \qw   \\
+		\vdots & & & & & & & & \vdots \\
+		& \qw & \qw & \qw & \ghost{\rho(U)} & \qw & \qw & \qw & \qw   \\
+		& & & \lstick{\ket{\alpha}} & \ghost{\rho(U)} & \rstick{\bra{\alpha}} \qw
+	}
+\]
+
+\section{Resources states}
+
+\subsection{General case}
+
+Supose we have a tower of embeddable extensions $E=R[\alpha_1,\dots,\alpha_k]$ where $R=\mathbb{D}[i, \sqrt{2}]$ such that there exists an $m$-qubit embedding $\rho$ of $E$ into $R$. We write $\alpha=(\alpha_1,\dots,\alpha_k)$ and use the multi-index $\alpha^j$ to denote $\alpha_1^{j_1}\cdots \alpha_k^{j_k}$. Recall that if
+\[
+	U = \sum \alpha^j A_{j}
+\]
+then 
+\[
+	U'=\rho(U)=\sum\Gamma^j\otimes A_j
+\]
+where $\Gamma=(\Gamma_1,\dots,\Gamma_k)\in U(R,2^m)^k$ pair-wise commutes. As Andrew pointed out, $\Gamma$ is simultaneously diagonalizable, and in particular there exists a simultaneous eigenvector $\Gamma\ket{\alpha} = \alpha\ket{\alpha}$ such that
+\[
+	U'\ket{\alpha}\ket{\phi} 
+		= (\sum\Gamma^j\otimes A_j)\ket{\alpha}\ket{\phi} 
+		= \ket{\alpha}\otimes (\sum\alpha^jA_j)\ket{\phi} 
+		= \ket{\alpha}\otimes U\ket{\phi}.
+\]
+
+As $\ket{\alpha}$ will not generally take values in $R$, it will be necessary to approximate it. In principle we can directly approximate the resource state $\ket{\alpha}$, but a simple solution is to diagonalize $\Gamma$ as $V\Lambda V^\dagger$ and approximate $V$. In particular, we have $(V\otimes U')\ket{0}\otimes\ket{\phi} = \ket{\alpha}\otimes U\ket{\phi}$ with error (approximating $V$ with $W\in U(R,2^m)$) $||(U'\otimes(V - W))\ket{0}\otimes\ket{\phi}||$ bounded as expected by the operator norm $||V - W||$.
+
+We obtain a simple upper bound on the Clifford+$T$ resources needed to approximate $V$ to within $\epsilon$ error by decomposing $V$ as a circuit over $CNOT$ and single-qubit unitaries. M\"ott\"onen \textit{et al.} \cite{general} give an optimal decomposition using $4^n-2^{n+1}$ $CNOT$ gates and $4^n$ single-qubit unitaries. Using the approximation of Ross and Selinger \cite{zrot} we can approximate the resulting circuit to an overall error of at most $\epsilon$ by approximating each single-qubit gate with error $\frac{\epsilon}{4^m}$, giving an overall $T$ count of
+\[
+	4^m(9\log_2(4^n/\epsilon) + O(\log(\log(4^n/\epsilon)))) = 4^m(18n + 9\log_2(1/\epsilon) + O(\log(\log(4^n/\epsilon)))).
+\]
+The bulk of the overhead is dominated by the number of single-qubit unitaries in the decomposition of $V$. Given a particular ring $E$, this isn't terrible as the cost is fixed, but for circuits such as the QFT which require larger embeddings as $n$ grows the cost is likely intractable. Either efficient multi-qubit approximations are needed or otherwise a way of concatenating eigenvectors.
+
+For specific cases we can do better with optimal decompositions and approximations. For a single-qubit embedding, we can approximate a resource state with $3$ $z$-rotations, giving an overhead of $9\log_2(1/\epsilon) + O(\log(\log(1/\epsilon)))$ $T$-gates as per \cite{zrot}. Similarly for two-qubit embeddings, an optimal decomposition into $R_Y$ and $R_Z$ gates is known using $15$ single-qubit unitaries, or at most $19$ $z$-rotations specifically for an overhead of 
+\[
+	19(3\log_2(19/\epsilon) + O(\log(\log(19/\epsilon)))) \leq 285 + 57\log_2(1/\epsilon) + O(\log(\log(19/\epsilon))))
+\]
+$T$-gates. It may be possible to reduce this further by swapping $z$ and $y$ rotations in the decomposition, or by decomposing $y$ rotations with fewer $z$ rotations.
+
+\subsection{Concatenated approximations}
+
+Rather than perform simultaneous diagonalization and approximate a simultaneous eigenvector $\ket{\alpha}=\ket{\alpha_1\alpha_2\dots\alpha_k}$, we can instead \emph{concatenate} our approximations by alternating embedding with approximation in the ring $R$. In particular, consider the case of $k=2$. For $E=R[\alpha_1,\alpha_2]$ and $U$ a $2^n\times 2^n$ unitary over $E$, we first construct the embedding $U'$ over $R[\alpha_1]$ and diagonalize $\Gamma_2=\rho_2(\alpha_2)\in U(R[\alpha_1])$ as $V_2\Lambda_2V_2^\dagger$ such that
+\[
+	U'(V_2\otimes I_{2^n})\ket{0}^{\otimes m_2}\otimes\ket{\phi} = U'\ket{\alpha_2}\otimes\ket{\phi} = \ket{\alpha_2}\otimes U\ket{\phi}
+\]
+
+If we approximate $V_2$ with $W_2$ over $R$, then we have $\rho(W_2\otimes I_{2^n}) = I_{m_1}\otimes W_2\otimes I_{2^n}$ and hence
+\[
+	\rho_1(U'(W_2\otimes I_{2^n})) = U''(I_{m_1}\otimes W_2\otimes I_{2^n})
+\]
+
+Again we diagonalize $\Gamma=\rho_1(\alpha_1)$ as $V_1\Lambda_1 V_1^\dagger$ such that
+\begin{align*}
+	U''(I_{m_1}\otimes W_2\otimes I_{2^n})(V_1\otimes I_{m_2}\otimes I_{2^n})\ket{0}\otimes\ket{\psi} 
+		&= U'\ket{\alpha_1}\otimes\ket{\psi}  \\
+		&= \ket{\alpha_1}\otimes U'(W_2\otimes I_{2^n})\ket{\psi}
+\end{align*}
+if we set $\ket{\psi} = \ket{0}\otimes\ket{\phi}$ we have
+\[
+	U''(I_{m_1}\otimes W_2\otimes I_{2^n})(V_1\otimes I_{m_2}\otimes I_{2^n})\ket{0}\otimes\ket{0}\otimes\ket{\phi} \sim \ket{\alpha_1}\otimes\ket{\alpha_2}\otimes U\ket{\phi}
+\]
+as desired.
+
+It turns out that this construction works \emph{without} interleaving approximation as well -- in particular, that $\ket{\alpha_1}\cdots\ket{\alpha_k}$ where \emph{each $\alpha_i$ is an eigenvector of $\Gamma_i$ in $R[\alpha_1,\dots,\alpha_{i-1}]$} satisfies
+\[
+	\rho(U)\ket{\alpha_1}\cdots\ket{\alpha_k}\otimes \ket{\phi} = \ket{\alpha_1}\cdots\ket{\alpha_k}\otimes U\ket{\phi}
+\]
+
+\begin{lemma}\label{lem:resource}
+Let $\rho$ be a $2^m$-embedding of $E=R[\alpha_1,\dots,\alpha_{k}]$ into $R$ such that $\rho=\rho_1\circ\cdots\circ\rho_k$ where each $\rho_i$ embeds $R[\alpha_1,\dots,\alpha_{i-1},\alpha_{i}]$ into $R[\alpha_1,\dots,\alpha_{i-1}]$. If $\ket{\alpha_i}$ is an $\alpha_i$-eigenvector for $\rho_i(\alpha_i)$, then for any unitary $U$ over $E$ and unit vector $\ket{\phi}$,
+\[
+	\rho(U)\ket{\alpha_1}\cdots\ket{\alpha_k}\ket{\phi} = \ket{\alpha_1}\cdots\ket{\alpha_k}(U\ket{\phi})
+\]
+\end{lemma}
+\begin{proof}
+We proceed inductively on $k$. If $k=1$ then we have $U = \sum \alpha_1^j A_{j}$ and moreover $\rho(U)=\sum\rho_1(\alpha_1)^j\otimes A_j$. Then
+\begin{align*}
+	\rho(U)\ket{\alpha_1}\ket{\phi}
+		&=(\sum\rho_1(\alpha_1)^j\otimes A_j)\ket{\alpha_1}\ket{\phi} \\
+		&=\sum \alpha_1^j\ket{\alpha_1}\otimes A_j\ket{\phi} \\
+		&=\ket{\alpha_1}\otimes \sum \alpha_1^j A_j\ket{\phi} \\
+		&=\ket{\alpha_1}(U\ket{\phi})
+\end{align*}
+
+Now suppose $k>1$. Let $\rho_0=\rho_1\circ\cdots\rho_{k-1}$. Then we have $U = \sum \alpha_k^j A_{j}$ for some $A_{j}$ in $R[\alpha_1,\dots,\alpha_{k-1}]$ and moreover, 
+\[ 
+	\rho(U)=\rho_0\circ\rho_k(U) = \rho_0(\sum\rho_k(\alpha_k)^j\otimes A_j).
+\]
+Hence we can observe by induction that
+\begin{align*}
+	\rho(U)\ket{\alpha_1}\cdots\ket{\alpha_k}\ket{\phi}
+		&= \rho_0(\sum\rho_k(\alpha_k)^j\otimes A_j)\ket{\alpha_1}\cdots\ket{\alpha_{k-1}}(\ket{\alpha_k}\ket{\phi}) \\
+		&= \ket{\alpha_1}\cdots\ket{\alpha_{k-1}}(\sum\rho_k(\alpha_k)^j\otimes A_j\ket{\alpha_k}\ket{\phi}) \\
+		&=\ket{\alpha_1}\cdots\ket{\alpha_{k-1}}(\ket{\alpha_k}\sum\alpha_k^j\otimes A_j\ket{\phi}) \\
+		&=\ket{\alpha_1}\cdots\ket{\alpha_k}(U\ket{\phi})
+\end{align*}
+\end{proof}
+
+As a corollary to the above lemma, we see that $U\ket{\phi}$ can be computed using the resource state $(V_1\otimes\cdots\otimes V_k)\ket{0}^\otimes m$, where each $V_i$ is a $2^{m_i}$ by $2^{m_i}$ unitary diagonalizing $\rho_i(\alpha_i)$, and $m = \sum_{i=1}^k m_i$. To approximate $U$ with accuracy $\epsilon$, each $V_i$ needs to be approximated up to error $\epsilon/k$, giving linear overhead when each $m_i$ is at most $c$ for any constant $c$.
+
+\section{Embedding unitaries}
+
+I don't have too much to say on embedding unitaries generically at the moment. We can use the Giles-Selinger exact synthesis algorithm, giving circuits of size
+\[
+	O(3^{2^{n+k}}(n+k)d)
+\]
+for a $k$-embedding of an $n$-qubit unitary with $\sqrt{2}$-lde $d$. Moreover, this isn't exactly practical generically since the run-time is also exponential in $n+k$.
+
+I don't have any concrete thoughts on how to go about this, but we may be able to find a way to implement embedded unitaries using controlled operations. In particular, if we have 
+\[
+	\rho(U) = I\otimes A + \Gamma\otimes B
+\]
+and can find some (Clifford+$T$) unitary $V$ such that $V^\dagger AV = I\otimes P_0$ and $V^\dagger BV = I\otimes P_1$, then we can write
+\[
+	(I\otimes V^\dagger)\rho(U)(I\otimes V) = I\otimes I\otimes P_0 + \Gamma\otimes I \otimes P_1
+\]
+which can be implemented by recursively implementing $\Gamma$ over Clifford+$T$ and then controlling it on the value of the last qubit. This is probably related to simultaneous diagonalization in some way.
+
+\section{Worked out examples}
+
+\subsection{Diagonal Clifford hierarchy gates}
+
+The first case we look at is that of embedding diagonal gates in any level of the Clifford hierarchy into the third level -- i.e. Clifford+$T$.
+
+Let $R=\mathbb{D}[\sqrt{2}, \zeta_{2^k}]$ for some $k$, where as usual $\zeta_{2^k}$ is the primitive $2^k$th root of unity $e^{2\pi i / 2^k}$. Recall that any diagonal gate in the $k$th level of the Clifford hierarchy has entries which are in $R$. While in principle better embeddings may be possible, we use the embedding 
+\[
+	\rho = \rho_4\circ \cdots \circ \rho_k
+\]
+where each $\rho_k$ embeds $\mathbb{D}[\sqrt{2}, \zeta_{2^k}]$ into $\mathbb{D}[\sqrt{2}, \zeta_{2^{k-1}}]$. Recall that the concatenated embeddings are given by
+\[
+	\rho_k(A + B\zeta_{2^k}) = \begin{bmatrix} A & \zeta_{2^{k-1}}B \\ B & A \end{bmatrix}.
+\]
+
+Our first step is to give a concrete resource state for the embedding $\rho$. We note that
+\[
+	\Gamma_k = \rho_k(\zeta_{2^k}) = \begin{bmatrix} 0 & \zeta_{2^{k-1}} \\ 1 & 0 \end{bmatrix}.
+\]
+We can verify that this $\Gamma_k$ gives the exact same embedding \textit{a priori} as $\rho_k$ by using the generic construction:
+\begin{align*}
+	\rho_k'(A + \zeta_{2^k}B)
+		&=\rho_k'(A) + \rho_k'(\zeta_{2^k})\rho(B) \\
+		&=I \otimes A + \Gamma_k \otimes B \\
+		&=\begin{bmatrix} A & 0 \\ 0 & A \end{bmatrix} + \begin{bmatrix} 0 & \zeta_{2^{k-1}}B \\ B & 0 \end{bmatrix} \\
+		&= \begin{bmatrix} A & \zeta_{2^{k-1}}B \\ B & A \end{bmatrix}
+\end{align*}
+
+By \cref{lem:resource} it suffices to concatenate eigenvectors for each $\Gamma_4, \dots, \Gamma_k$ to produce a resource state for $\rho$. The following lemma gives such an eigenvector.
+
+\begin{lemma}
+For any $k\geq 1$, $\ket{\zeta_{2^k}} = \frac{1}{\sqrt{2}}\begin{bmatrix} \zeta_{2^k} \\ 1 \end{bmatrix}$ is a unit eigenvector of
+\[
+	\Gamma_k = \begin{bmatrix} 0 & \zeta_{2^{k-1}} \\ 1 & 0 \end{bmatrix}
+\]
+with eigenvalue $\zeta_{2^k}$.
+\end{lemma}
+\begin{proof}
+By calculation. That is,
+\[
+	\Gamma_k \ket{\zeta_{2^k}} = \frac{1}{\sqrt{2}}\begin{bmatrix} \zeta_{2^{k-1}} \\ \zeta_{2^k} \end{bmatrix} 
+		= \frac{\zeta_{2^k}}{\sqrt{2}} \begin{bmatrix} \zeta_{2^k} \\ 1 \end{bmatrix}
+\]
+\end{proof}
+
+Note that $\ket{\zeta_{2^k}} = XR_z(2\pi i /2^k)XH\ket{0}$, hence preparing a resource state for $\rho$ requires the approximation of $k-3$ $z$-rotations.
+
+\begin{corollary}
+	A resource state for $\rho$ can be approximated to $\epsilon$ accuracy with $O(3 \log_2(k/\epsilon) + O(\log(\log(k/\epsilon)))$ $T$ gates.
+\end{corollary}
+
+Next we need concrete circuits for the embedded diagonal Clifford hierarchy gates. It suffices to find circuits for embedded multiply-controlled $R_z(2\pi i /2^k)$ gates, as any diagonal gate in the Clifford hierarchy can be implemented as a sequence of multiply-controlled $R_z(2\pi i /2^k)$ gates. The following lemma gives a recursive construction, embedding a multiply-controlled $R_z(2\pi i /2^k)$ as a diagonal $(k-1)$th level Clifford hierarchy gate, followed by a Clifford+$T$ gate
+
+\begin{lemma}
+For any $k \geq 1$ we have
+\[
+	\Qcircuit @C=.5em @R=0.5em @!R {
+		& \ctrl{3} & \qw \\
+		\vdots & & \vdots \\
+		& \ctrl{1} & \qw \\
+		& \gate{R_k} & \qw
+	}
+	\qquad
+	\raisebox{-3em}{$=$}
+	\qquad
+	\Qcircuit @C=.5em @R=0.5em @!R {
+		& \qw & \ctrl{4} & \ctrl{4} & \qw & \qw \\
+		\vdots & & & & \vdots \\
+		& \qw & \ctrl{2} & \ctrl{2} & \qw & \qw \\
+		& \qw & \ctrl{1} & \ctrl{1} & \qw & \qw \\
+		& \lstick{\ket{\zeta_{2^k}}} & \gate{R_{k-1}} & \targ & \qw & \rstick{\!\!\!\!\bra{\zeta_{2^k}}}
+	}
+\]
+\end{lemma}
+\begin{proof}
+Observe that 
+\begin{align*}
+	\rho_k\left(\begin{bmatrix} 
+		1 & 0 & \cdots & 0 \\
+		 0 & 1 & \cdots & 0 \\
+		\vdots & & \ddots & \vdots \\
+		0 & 0 & \cdots & \zeta_{2^k}
+	\end{bmatrix}\right) &= 
+	\begin{bmatrix} 
+		1 & 0 & \cdots & 0 & 0 & 0 & \cdots & 0 \\
+		 0 & 1 & \cdots & 0 & 0 & 0 & \cdots & 0 \\
+		\vdots & & \ddots & \vdots & \vdots & & \ddots & \vdots \\
+		0 & 0 & \cdots & 0 & 0 & 0 & \cdots & \zeta_{2^{k-1}} \\
+		0 & 0 & \cdots & 0 & 1 & 0 & \cdots & 0 \\
+		0 & 0 & \cdots & 0 & 0 & 1 & \cdots & 0 \\
+		\vdots & & \ddots & \vdots & \vdots & & \ddots & \vdots \\
+		0 & 0 & \cdots & 1 & 0 & 0 & \cdots & 0 \\
+	\end{bmatrix} \\ &=
+	\begin{bmatrix} 
+		1 & 0 & \cdots & 0 & 0 & 0 & \cdots & 0 \\
+		 0 & 1 & \cdots & 0 & 0 & 0 & \cdots & 0 \\
+		\vdots & & \ddots & \vdots & \vdots & & \ddots & \vdots \\
+		0 & 0 & \cdots & 0 & 0 & 0 & \cdots & 1 \\
+		0 & 0 & \cdots & 0 & 1 & 0 & \cdots & 0 \\
+		0 & 0 & \cdots & 0 & 0 & 1 & \cdots & 0 \\
+		\vdots & & \ddots & \vdots & \vdots & & \ddots & \vdots \\
+		0 & 0 & \cdots & 1 & 0 & 0 & \cdots & 0 \\
+	\end{bmatrix}
+	\begin{bmatrix} 
+		1 & 0 & \cdots & 0 & 0 & 0 & \cdots & 0 \\
+		 0 & 1 & \cdots & 0 & 0 & 0 & \cdots & 0 \\
+		\vdots & & \ddots & \vdots & \vdots & & \ddots & \vdots \\
+		0 & 0 & \cdots & 1 & 0 & 0 & \cdots & 0 \\
+		0 & 0 & \cdots & 0 & 1 & 0 & \cdots & 0 \\
+		0 & 0 & \cdots & 0 & 0 & 1 & \cdots & 0 \\
+		\vdots & & \ddots & \vdots & \vdots & & \ddots & \vdots \\
+		0 & 0 & \cdots & 0 & 0 & 0 & \cdots & \zeta_{2^{k-1}} \\
+	\end{bmatrix}
+\end{align*}
+\emph{(note: the tensor order here is actually bottom to top, counterintuitively. Specifically, the permutation matrix swaps the $011\cdots 1$ and $111\cdots 1$ states, where the "first" qubit is actually the resource state, as per the tensor order of the embedding $\rho(\zeta_{2^k}A) = \Gamma_k\otimes A$).}	
+\end{proof}
+
+\begin{corollary}
+For any $k \geq 4$ we have
+\[
+	\Qcircuit @C=.5em @R=0.5em @!R {
+		& \ctrl{3} & \qw \\
+		\vdots & & \vdots \\
+		& \ctrl{1} & \qw \\
+		& \gate{R_k} & \qw
+	}
+	\qquad
+	\raisebox{-3em}{$=$}
+	\qquad
+	\Qcircuit @C=.5em @R=0.5em @!R {
+		& \qw & \qw & \qw & \ctrl{6} & \ctrl{6} & \qw & & \cdots & & & \ctrl{5} & \ctrl{4} & \qw & \qw & \qw & \qw \\
+		\vdots & & & & & & & & & & & & & & & \vdots \\
+		& \qw & \qw & \qw & \ctrl{5} & \ctrl{5} & \qw & & \cdots & & & \ctrl{3} & \ctrl{2} & \qw & \qw & \qw & \qw \\
+		& \qw & \qw & \qw & \ctrl{4} & \ctrl{4} & \qw & & \cdots & & & \ctrl{2} & \ctrl{1} & \qw & \qw & \qw & \qw \\
+		& & & \lstick{\ket{\zeta_{2^k}}} & \ctrl{3} & \ctrl{3} & \qw & & \cdots & & & \ctrl{1} & \targ & \qw & \rstick{\!\!\!\!\bra{\zeta_{2^k}}} \\
+		& & & \lstick{\ket{\zeta_{2^{k-1}}}} & \ctrl{2} & \ctrl{2} & \qw & & \cdots & & & \targ & \qw & \qw & \rstick{\!\!\!\!\bra{\zeta_{2^{k-1}}}} \\
+		\vdots & & & & & & & & \iddots & & & & & & & \vdots \\
+		& & & \lstick{\ket{\zeta_{2^4}}} & \gate{T} & \targ & \qw & & \cdots & & & \qw & \qw & \qw & \rstick{\!\!\!\!\bra{\zeta_{2^4}}}
+	}
+\]
+\end{corollary}
+
+The final thing to note is that the cascade of controlled NOT gates in the above construction is actually a controlled increment circuit, where the uncontrolled increment can be implemented with $O(n)$ Toffoli gates where $n$ is the bit width being incremented. For the singly-controlled $R_k$ gate, this gives a resource cost of $k-3$ ancillas and $O(k-3)$ Toffoli gates, plus a $(k-3)$-controlled $T$ gate. Presumably there's a way to absorb the controls for the $T$ gate into the incrementer somehow, I'll have to think on that.
+
+\begin{remark}
+One interesting thing to note is that, up to global phase, these are exactly the magic states used to teleport the relevant $R_k$ gate in higher-order state distillation schemes. Likewise, for a single $T$ gate, this scheme amounts to the standard $T$ state and gate teleportation circuit, where the only difference is instead of measuring the magic state and performing a classically-controlled (hence Clifford) $S$ gate, we leave the qubit un-measured and perform a (non-Clifford) quantum-controlled $S$ gate. Of course, for $T$ gates we can't perform this type of magic state re-use since the phase correction itself requires $T$ gates fault-tolerantly without first measuring the magic state.
+
+This brings up some interesting connections, however. In particular, it appears embedding generalizes gate teleportation to a kind of concatenated gate teleportation. Also, we probably want to look at \cite{phasegradientdistill} which uses phase gradients to reduce the cost of state distillation somehow, and also \cite{hierarchysynth} which reduces the cost of approximation by $30\%$ when adding $\sqrt{T}$ gates.
+\end{remark}
+
+\subsection{Eisenstein gates}
+
+\emph{(note: merged from eisenstein.tex)}
+
+In this section we consider the problem of embedding unitaries over the ring $\mathbb{D}[\omega := e^{2\pi i/3}]$ into the integral Clifford+$T$ operators, i.e. unitaries over $\mathbb{D}$. We call this the Eisenstein case, in analogy with Eisenstein integers $\mathbb{Z}[\omega]$.
+
+As per Andrew's note we know there exists a $4$-embedding of $\omega$ into $\mathbb{D}$. In particular, we have
+\[
+	\Gamma = \frac{1}{2}
+	\begin{bmatrix} 
+		-1 & 1 & -1 & -1 \\
+		-1 & -1 & -1 & 1 \\
+		1 & 1 & -1 & 1 \\
+		1 & -1 & -1 & -1
+	\end{bmatrix}
+\]
+where we can verify that, for instance,
+\begin{align*}
+	\Gamma^3 &= I \\
+	\Gamma^2 + \Gamma + I &= 0 \\
+	\Gamma^\dagger \Gamma = \Gamma\Gamma^\dagger &= I.
+\end{align*}
+The above embedding is obtained by writing
+\[
+	\omega = \frac{-1 + i\sqrt{3}}{2}.
+\]
+and taking the tower of embeddable extensions $\mathbb{D}[i, \frac{-1 + i\sqrt{3}}{2}]$. In particular, we have the embedding of $\frac{-1 + i\sqrt{3}}{2}$ into $\mathbb{D}[i]$ where
+\[
+	\rho\left(\frac{-1 + i\sqrt{3}}{2}\right) 
+	= \frac{1}{2}\left(-I + iX + iY + iZ\right) 
+	= \frac{1}{2}\begin{bmatrix}  -1 + i & 1 + i \\ -1 + i & -1 -i \end{bmatrix}
+\]
+
+While this gives a more space-efficient embedding, it's conceivable that by constructing a larger embedding, it may be possible to more efficiently approximate eigenvectors. For that reason, we give an $8$-embedding into the tower $\mathbb{D}[i, \sqrt{2}, \sqrt{3}]$ below.
+\[
+	\Gamma' = \frac{1}{2}
+	\begin{bmatrix}
+		-1 & 1 & 0 & 1 & 0 & 0 & 0 & -1 \\
+		-1 & -1 & 1 & 0 & 0 & 0 & -1 & 0 \\
+		0 & -1 & -1 & 1 & 0 & -1 & 0 & 0 \\
+		-1 & 0 & -1 & -1 & 1 & 0 & 0 & 0 \\
+		0 & 0 & 0 & 1 & -1 & 1 & 0 & 1 \\
+		0 & 0 & 1 & 0  & -1 & -1 & 1 & 0 \\
+		0 & 1 & 0 & 0 & 0 & -1 & -1 & 1 \\
+		1 & 0 & 0 & 0 & -1 & 0 & -1 & -1
+	\end{bmatrix}
+\]
+
+Perhaps the simplest interesting gate over $\mathbb{D}[\omega]$ is a third root of unity phase gate
+\[
+	\begin{bmatrix} 
+		1 & 0  \\
+		0 & \omega
+	\end{bmatrix}.
+\]
+We will call this gate $E$ for the remainder of this note. In analogy to Clifford+$T$, Clifford+$E$ gives a universal set of quantum gates. Embedding $E$ in $\mathbb{D}$ gives
+\[
+	E' = 
+	\frac{1}{2}
+	\begin{bmatrix}
+		2&0&0&0&0&0&0&0\\
+		0&-1&0&1&0&-1&0&-1\\
+		0&0&2&0&0&0&0&0\\
+		0&-1&0&-1&0&-1&0&1\\
+		0&0&0&0&2&0&0&0\\
+		0&1&0&1&0&-1&0&1\\
+		0&0&0&0&0&0&2&0\\
+		0&1&0&-1&0&-1&0&-1
+	\end{bmatrix}     
+\]
+
+We can synthesize a circuit over $\mathbb{D}$ for $E'$ by running the exact synthesis algorithm. In particular, we find that
+\[
+	E' = (-1)_1(-1)_3 (H\otimes H)_{1,3,5,7}(-1)_7X_{3,7},
+\]
+which can be implemented over the integral generators as
+\[
+  \Qcircuit @C=1em @R=.5em @!R {
+        & \qw & \targ & \ctrl{2} & \gate{X} & \ctrl{1} & \gate{X} & \qw & \qw & \qw \\
+	& \qw & \ctrl{-1} & \ctrl{1} & \qw & \multigate{1}{H\otimes H} & \qw & \gate{Z} & \qw & \qw \\
+	& \qw & \ctrl{-2} & \gate{Z} & \qw & \ghost{H\otimes H} & \gate{X} & \ctrl{-1} & \gate{X} & \qw
+  }
+\]
+As a circuit over Clifford+$T$, we can implement the above $E'$ circuit with $12$ $T$ gates and no ancillas.
+
+Recall that given an eigenvector $\ket{\alpha}$ of $\Gamma$,
+\[
+	U'(\ket{\alpha}\otimes \ket{\phi}) = \ket{\alpha}\otimes U\ket{\phi}.
+\]
+In the specific case of $E'=I\otimes \ket{0}\bra{0} + \Gamma\otimes \ket{1}\bra{1}$ and some eigenvector $\Gamma\ket{\omega} = \omega\ket{\omega}$ we can verify that
+\begin{align*}
+	E'(\ket{\omega}\otimes \ket{\phi})
+		&= \ket{\omega} \otimes (\ket{0}\bra{0})\ket{\phi} + \omega\ket{\omega}\otimes (\ket{1}\bra{1})\ket{\phi} \\
+		&=\ket{\omega}\otimes (\ket{0}\bra{0} + \omega\ket{1}\bra{1})\ket{\phi} \\
+		&=\ket{\omega}\otimes E\ket{\phi}
+\end{align*}
+
+As a further sanity check, we can verify that the measurement outcomes of a circuit using $E$ gates non-trivially are correct:
+\[
+	\ket{\psi} = HEH\ket{0} = \frac{1}{2}\begin{bmatrix} 1 + \omega \\ 1 - \omega \end{bmatrix},
+\]
+where $|\frac{1}{2}(1 + \omega)|^2 = \frac{1}{4}$ and $|\frac{1}{2}(1 - \omega)|^2 = \frac{3}{4}$. The embedding of $HEH$ likewise gives
+\[
+	(I\otimes H)E'(I\otimes H)\ket{\alpha}\otimes\ket{0} 
+		= \ket{\alpha}\otimes HEH\ket{0} 
+		= \ket{\alpha} \otimes \frac{1}{2}\begin{bmatrix} 1 + \omega & 1 - \omega \end{bmatrix}^T
+\]
+which is of course separable and produces the same measurement distribution.
+
+We now turn our attention to the approximation of $\ket{\alpha}$. We can verify that the following gives a normalized set of eigenvectors of $\Gamma$:
+\[\left\{
+	\frac{1}{\sqrt{3}}\begin{bmatrix} \omega \\ \omega^\dagger \\ 0 \\ 1 \end{bmatrix},
+	\frac{1}{\sqrt{3}}\begin{bmatrix} -\omega^\dagger \\ \omega \\ 1 \\ 0 \end{bmatrix},
+	\frac{1}{\sqrt{3}}\begin{bmatrix} \omega^\dagger \\ \omega \\ 0 \\ 1 \end{bmatrix},
+	\frac{1}{\sqrt{3}}\begin{bmatrix} -\omega \\ \omega^\dagger \\ 1 \\ 0 \end{bmatrix}
+\right\}\]
+with eigenvalues $\omega, \omega, \omega^\dagger, \omega^\dagger$, respectively. In case it is helpful we can write an orthonormal basis for the eigenspace as
+\[\left\{
+	\frac{1}{\sqrt{3}}\begin{bmatrix} \omega \\ \omega^\dagger \\ 0 \\ 1 \end{bmatrix},
+	\frac{i}{\sqrt{6}}\begin{bmatrix} 1 \\ 1 \\ -(2\omega + 1) \\ 1 \end{bmatrix},
+	\frac{1}{\sqrt{3}}\begin{bmatrix} \omega^\dagger \\ \omega \\ 0 \\ 1 \end{bmatrix},
+	\frac{-i}{\sqrt{6}}\begin{bmatrix} 1 \\ 1 \\ 2\omega + 1 \\ 1 \end{bmatrix}
+\right\}\]
+giving the decomposition $\Gamma=U\Lambda U^\dagger$
+
+As expected, the eigenvectors can't be written over $\mathbb{D}$ (or for that matter, $\mathbb{D}[i,\sqrt{2}]$) and hence must be approximated. While we don't have a general purpose method of efficiently approximating multi-qubit unitaries over $\mathbb{D}[i,\sqrt{2}]$ or various restricted subgroups, we can reduce the problem of approximating $\ket{\omega}$ to that of approximating single-qubit unitaries over $\mathbb{D}[i,\sqrt{2}]$ by writing $U$ as a sequence of $CNOT$ gates and single-qubit unitaries. In particular, we can construct such a circuit using at most $3$ $CNOT$ gates and $15$ single-qubit unitaries \cite{twoqubit}. Note that the construction in \cite{twoqubit} can be written with at most $19$ $R_Z$ rotations, giving an approximation overhead factor of $19$ over a single $E$ gate, plus a small constant number of $T$ gates. Roughly speaking, this scheme schould outperform the direct approximation of $E$ gates when the number of $E$ gates is greater than $19$, assuming two extra qubits are available.
+
+We can reduce this overhead if we're given efficient access to a specific type of $3$-qubit entanglement known as $W$-type entanglement. Specifically, given the $3$-qubit resource state
+\[
+	\ket{W} = \frac{\ket{100} + \ket{010} + \ket{001}}{\sqrt{3}},
+\]
+we can prepare the state $\frac{1}{\sqrt{3}}\begin{bmatrix} \omega & \omega^\dagger & 0 & 1 \end{bmatrix}^T$ with only $2$ $E$ gates. To see how this construction works, first we swap $\ket{100}$ with $\ket{000}$ and $\ket{010}$ with $\ket{011}$, then discard the extra $\ket{0}$. Next we see that
+\[
+	\omega^{(1\oplus x)(1\oplus y) + 2(1\oplus x)y} = \omega^{(1\oplus x\oplus y) + 2y}
+\]
+hence we only need $2$ $E$ gates and two $CNOT$ gates to complete the state preparation. The resulting circuit is shown below:
+\[
+  \Qcircuit @C=1em @R=.5em @!R {
+        & \qw & \qw &  \targ & \gate{X} & \ctrl{2} & \targ & \gate{E} & \targ & \gate{X} & \qw \\
+	\lstick{\ket{W}} & \qw & \gate{X} & \ctrl{-1} & \gate{X} & \ctrl{1} & \ctrl{-1} & \gate{E^\dagger} & \ctrl{-1} & \qw & \qw \\
+	 & \qw & \gate{X} & \ctrl{-2} & \gate{X} & \targ & \qw {|} & \lstick{\ket{0}}
+  }
+\]
+Given a perfect $\ket{W}$ state, for a total error of at most $\epsilon$, we need to approximate $E$ and $E^\dagger$ to with $\epsilon/2$ accurracy, increasing the number of $T$ gates to approximate a single $E$ gate by a constant factor of $\sim2$. Note that for a circuit with $>2$ $E$ gates, assuming access to a perfect $\ket{W}$ state and 2 extra qubits, this scheme should outperform direct implementations in terms of $T$-count.
+
+\subsection{Real-angle $z$-rotations}
+
+Here we're interested in the question of implementing general real-angle $z$-rotations of the form
+\[
+	R_z(\theta) = \begin{bmatrix} e^{-i\theta/2} & 0 \\ 0 & e^{i\theta/2} \end{bmatrix}
+\]
+via embedded Clifford+$T$ circuits. We already know that such gates can be approximated to $\epsilon$ accuracy over Clifford+$T$ by rounding and exact synthesis, giving $T$ counts of $3\log_2(1/\epsilon) + O(\log(\log(1/\epsilon)))$ with no ancillas, or down to $1.15\log_2(1/\epsilon)$ with repeat-until-success circuits. However, embedding has the benefit that if the embedding is more efficient than the approximation, there should exist a number of rotations by the same angle at which point the embedded circuit gains an advantage. They don't even have to be the same angle, as long as they can all be approximated to the necessary accuracy over the same ring.
+
+Since we can't embed arbitrary real numbers, the first step will be approximating $R_z(\theta)$ by a unitary $U$ over some \emph{embeddable} (in Clifford+$T$) ring $R$. Typically $R$ is taken as $\mathbb{D}[\sqrt{2},i]$, in which case we have the trivial embedding, but this isn't particularly efficient as we don't have enough points on the unit circle to approximate $e^{i\theta/2}$ directly and instead have to approximate $e^{i\theta/2}$ by finding a close point on a particular lattice. However, with embeddings we have an infinite number of constructible points on the unit circle, so we can ostensibly approximate $e^{i\theta/2}$ directly on the unit circle, and then embed this in Clifford+$T$. For now, we'll just look at the simplest case which we already know how to embed: via unitaries of the form
+\[
+	R_k=R_z(2\pi/2^k) = \begin{bmatrix} e^{-i\pi/2^k} & 0 \\ 0 & e^{i\pi/2^k} \end{bmatrix}
+\]
+
+\begin{proposition}
+	\[ || R_z(\theta) - R_k^l || = | e^{i\theta/2} - e^{i\pi l/2^k} | \]
+\end{proposition}
+
+By the above proposition, to approximate $R_z(\theta)$ to accuracy epsilon we only need to determine at which $k$ does $\{R_k^l\}$ give an $\epsilon$-net for the unit circle. Going by geometric intuition alone, the points are evenly space out, and we have an $\epsilon$-net if the distance between any two adjacent points is at most $2\epsilon$, since the midpoint is $\epsilon$ from either point, so we just need to find $k$ such that
+\[
+	|1 - e^{i\pi/2^k}| \leq 2\epsilon.
+\]
+
+\begin{lemma}
+	If $k \geq \log_2(1/\epsilon) + 1$, then $|1 - e^{i\pi/2^k}| \leq 2\epsilon$
+\end{lemma}
+\begin{proof}
+	First we note that
+	\begin{align*}
+		|1 - e^{i\pi/2^k}| &= \sqrt{1 - 2\cos(\pi/2^k) + \cos^2(\pi/2^k) + \sin^2(\pi/2^k)} \\
+			&=\sqrt{2 - 2\cos(\pi/2^k)} \\
+			&=\sqrt{4\sin^2(\pi/2^{k+1})} \\
+			&=2\sin(\pi/2^{k+1})
+	\end{align*}
+
+	Now we have 
+	\begin{align*}
+		2\sin(\pi/2^{k+1}) &\leq 2\epsilon \\
+		\pi/2^{k+1} &\leq \sin^{-1}(\epsilon) \\
+		2^{k+1} &\geq \pi/\sin^{-1}(\epsilon) \\
+		k &\geq \log_2(\pi/\sin^{-1}(\epsilon)) - 1
+	\end{align*}
+
+	Finally, we know that $\sin(x) < x$ for $ 0 < x < 1$, and hence $\sin^{-1}(\epsilon) \geq \epsilon$. Thus we see that
+	\begin{align*}
+		\log_2(\pi/\sin^{-1}(\epsilon)) - 1 &\leq \log_2(\pi/\epsilon) - 1 \\
+			&= \log_2(1/\epsilon) + \log_2(\pi) - 1 \\
+			&\leq \log_2(1/\epsilon) + 1
+	\end{align*}
+	and hence 
+	\[k \geq \log_2(1/\epsilon) + 1 \geq \log_2(\pi/\sin^{-1}(\epsilon)) - 1.\]
+
+\end{proof}
+
+Since we can't implement $R_k$ directly, we have in some sense a concatenated approximation -- i.e. to approximate $R_z(\theta)$ to $\epsilon$ we first approximate via $R_k$, then approximate $R_k$ by embedding and then approximating the required resource states. Fortunately, errors in concatenated approximations are also trivially additive, as shown below.
+\begin{proposition}
+	\[
+		||U - V|| = ||U - W + W - V|| \leq || U - W|| + ||W - V||
+	\]
+\end{proposition}
+
+Curiously, all of this seems to imply that we can distribute error in various ways with this set up. In particular, choosing a large error for the $R_k$ gate will result in fewer ancillas and fewer resource states to approximate to a high precision, whereas approximating $R_k$ to a very small error term will use more ancillas and more resource states, but with lower precision. We'll have to do a numerical optimization here to find optimal parameters, but I'm, guessing it will be advantageous to go for a low-precision $R_k$ approximation.
+
+Na\"ively, this doesn't actually really help us, since the $T$ cost of the increment circuit embedding $R_k$ is approximately 
+\[
+	7k = 7\log_2(1/\epsilon) + 7
+\]
+which is actually \emph{higher} than the direct approximation cost, so we don't get any savings even over multiple gates. There are however a couple of areas where we can maybe find savings with this scheme
+\begin{itemize}
+	\item Better increment circuits. It's possible that the number of $T$ gates needed to implement the increment is actually much lower than $7k$. This is something we should look into.
+	\item Parallel/commuting rotations. Recent work on simulation \cite{grouped} has grouped commuting rotations together -- such rotations could possibly be performed simultaneously at lower $T$ cost, like in the phase-gradient QFT. We'll likely need to run experiments to find out the average number of rotations in these commuting groups and also figure out the circuit cost of embedding arbitrary diagonal Clifford hierarchy gates.
+	\item Combined synthesis + embedding (symbedding, like synthillation). In principle, we can approximate rotation gates with any particularly good sequences of constructible angles, and then embed those angles. The trick here will most likely be to restrict ourselves to angles which are relatively efficient to embed, while drastically reducing the length of approximations. \cite{hierarchysynth} may be a good starting place, as they get around a factor of 0.3 improvement by including $\sqrt{T}$ gates, which have a fixed $T$ cost of $9$ in this scheme. Again, this actually increases the $T$ count at face value, but I haven't looked closely at \cite{hierarchysynth} just yet. Another option is to contact Ori and/or Sarnak.
+\end{itemize}
+
+\subsection{Golden and Super Golden Gates}
+
+Parzanchevski and Sarnak \cite{supergoldengates} give sets of generators which fill up $PU(2)$ faster than the single-qubit Clifford+$T$ gate set. Ideally we could embed some of these gates to find some resource savings compared to direct approximation. Unfortunately it seems that these gates all require normalization factors which are not embeddable. I'm leaving this here for now so I can get around to writing out all the gates listed in \cite{supergoldengates} and their normalization factors, in case there is something useful to do.
+%
+%Many of the generators they give are themselves unitaries over the ring $\mathbb{D}[\sqrt{2},i]$ and hence not likely to give any improvement via embeddings. However, their most efficient generators, ``Klein’s Icosahedral group plus T'', are expressible over $\mathbb{D}[\sqrt{5},i]$, which makes this an interesting case to look at embedding.
+%
+%\begin{definition}
+%	The Klein Icosahedral group $C_{60}$ is generated by
+%	\[
+%		A := \frac{1}{\sqrt{2}}\begin{pmatrix} 1 & 1 \\ i & -i \end{pmatrix}, \quad 
+%		B := \frac{1}{2}\begin{pmatrix} 1 & \frac{1 + \sqrt{5} + i(1-\sqrt{5})}{2} \\ \frac{1+\sqrt{5} - i(1-\sqrt{5})}{2} & -1 \end{pmatrix}
+%	\]
+%	The $T_{60}$ gate is defined as
+%	\[
+%		T := \sqrt{\frac{2}{19+5\sqrt{5}}}\begin{pmatrix} 2 + \frac{1 + \sqrt{5}}{2} & 1 - i \\ 1 + i & -2 - \frac{1 + \sqrt{5}}{2} \end{pmatrix}
+%	\]
+%	Together $C_{60}$ and $T_{60}$ generate the Klein Icosahedral group + $T$.
+%\end{definition}
+%Note that in \cite{supergoldengates} the matrices above are written over $\phi = \frac{1 + \sqrt{5}}{2}$ and 
+%\begin{align*}
+%	1/\phi &= \frac{2}{1 + \sqrt{5}} \cdot \frac{1 - \sqrt{5}}{1 - \sqrt{5}} \\
+%		&= \frac{2(1 - \sqrt{5})}{-4} \\
+%		&=-\frac{1 - \sqrt{5}}{2} \\
+%		&=-\phi^{\bullet}
+%\end{align*}
+%where $(\cdot)^\bullet$ is the automorphism on $\mathbb{D}[\sqrt{5},i]$ mapping $\sqrt{5}$ to $-\sqrt{5}$. Moreover, the matrices in \cite{supergoldengates} are unnormalized, so normalization factors are added in above. 
+%
+%Since $5 = 1^2 + 2^2$ we can embed $\mathbb{D}[\sqrt{5},i]$ in $\mathbb{D}[i]$ by the $2$-embedding 
+%\[
+%	\Gamma = \rho(\sqrt{5}) = \begin{pmatrix} 0 & 1 - 2i \\ 1 + 2i & 0 \end{pmatrix}.
+%\]
+%As expected this gives us the embedding of $U = A + \sqrt{5}B$ from Andrew's note:
+%\[
+%	U' = I \otimes A + \Gamma\otimes B = \begin{pmatrix} A & (1-2i)B \\ (1+2i)B & A \end{pmatrix}.
+%\]
+%An $\sqrt{5}$-eigenvector of $\Gamma$ is
+%\[
+%	\ket{\sqrt{5}} = \frac{1}{\sqrt{2}}\begin{pmatrix}  \frac{1 - 2i}{\sqrt{5}} \\ 1 \end{pmatrix}.
+%\]
+%
+%If we embed the generators, we get
+%\begin{align*}
+%	\rho(A) = \begin{pmatrix} 1 & 1 & 0 & 0 \\ i & -i & 0 & 0 \\ 0 & 0 & 1 & 1 \\ 0 & 0 & i & - i \end{pmatrix}
+%\end{align*}
+
+\section{Applications}
+
+\subsection{The Quantum Fourier Transform}
+
+%The Quantum Fourier Transform is a classic example of an operation which requires approximation to implement in (most) fault-tolerant settings. In particular, for a QFT on $n$ qubits, $n-k+1$ controlled $z$-rotations of angle $\frac{2\pi i}{2^k}$ are needed for any $2\leq k \leq n$. Typically, this would be implemented by writing each controlled $z$-rotation as three half-angle $z$-rotations -- i.e. $3(n-k+1)$ rotations of angle $\frac{2\pi i}{2^{k+1}}$ -- and approximating angles with $k+1>8$ over Clifford+$T$. Here we briefly consider the resources required to instead embed each controlled $z$-rotation into Clifford+$T$.
+%
+%While in principle better embeddings are possible for many of the power of two angles involved in the QFT, we use the straightforward tower of embeddings $\mathbb{D}[\sqrt{2},i,\zeta_{2^3},\dots,\zeta_{2^n}]$ where each  $\zeta_{2^i}$ has the $2$-embedding into $\mathbb{D}[\sqrt{2},i,\zeta_{2^3},\dots,\zeta_{2^{i-1}}]$ given by
+%\[
+%	\rho_i(\zeta_{2^i}) = \begin{bmatrix} 0 & \zeta_{2^{i-1}} \\ 1 & 0 \end{bmatrix}.
+%\]
+%The resulting embedding uses a total of $n-2$ ancillas, as the controlled-$T$ gate requires either a single ancilla to implement, or to decomposed as $3$ order $16$ rotations. To prepare a resource state, $n-3$ single-qubit unitaries are needed, giving an approximation overhead of something like
+%\[
+%	9n\log_2(1/\epsilon) + O(\log_2(n) + \log(\log((n)/\epsilon)))
+%\]
+%$T$ gates. This is compared to the standard case requiring the approximation (if controlled-$T$ is implemented with an ancilla) of
+%\begin{align*}
+%	\sum_{k=4}^n n-k+1 
+%		&= \sum_{i=1}^{n-3} i \\
+%		&= \frac{n(n+1)}{2} - 1 - n - (n-1) - (n-2) \\
+%		&= \frac{n^2 -5n + 4}{2}
+%\end{align*}
+%controlled $z$-rotations, for a total approximation overhead of something like
+%\[
+%	\left(\frac{n^2 -5n + 4}{2}\right)9\log_2(1/\epsilon) + O(\log_2(n) + \log(\log((n)/\epsilon)))
+%\]
+%probably. This crosses over somewhere around $23$ qubits.
+
+
+\subsection{Quantum simulation}
+
+\begin{thebibliography}{9}
+
+\bibitem{twoqubit} Farrokh Vatan and Colin Williams, \emph{Optimal Quantum Circuits for General Two-Qubit Gates}. arXiv:quant-ph/0308006.
+
+\bibitem{general} Mikko M\"ott\"onen, Juha J. Vartiainen, Ville Bergholm, and Martti M. Salomaa \emph{Quantum circuits for general multi-qubit gates}. arXiv:quant-ph/0404089.
+
+\bibitem{zrot} Neil J. Ross and Peter Selinger, \emph{Optimal ancilla-free Clifford+T approximation of z-rotations}. arXiv:1403.2975.
+
+\bibitem{phasegradientdistill} Craig Gidney and Austin Fowler, \emph{Efficient magic state factories with a catalyzed $\ket{CCZ}$ to $2\ket{T}$ transformation}. arXiv:1812.01238v3.
+
+\bibitem{hierarchysynth} Gary J. Mooney, Charles D. Hill, Lloyd C.L. Hollenberg, \emph{Cost-optimal single qubit gate synthesis in the Clifford hierarchy}. arXiv:2005.05581.
+
+\bibitem{supergoldengates} Ori Parzanchevski, Peter Sarnak, \emph{Super-Golden-Gates for PU(2)}. arXiv:1704.02106.
+
+\bibitem{grouped} Ewout van den Berg, Kristan Temme, \emph{Circuit optimization of Hamiltonian simulation by simultaneous diagonalization of Pauli clusters}. arXiv:2003.13599.
+
+\end{thebibliography}
+
+\end{document}
