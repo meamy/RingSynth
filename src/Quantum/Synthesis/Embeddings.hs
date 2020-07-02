@@ -34,6 +34,8 @@ import Quantum.Synthesis.Ring
 import Quantum.Synthesis.TypeArith
 import Quantum.Synthesis.MoreRings
 
+import Quantum.Synthesis.Exact
+import Quantum.Synthesis.Integral
 {------------------------
  Embeddings
  ------------------------}
@@ -182,8 +184,17 @@ omega_in_Di_alt = embedElt (roottwo * half * (1 + i) :: RootTwo (Cplx Dyadic))
 omega_in_D_alt :: Matrix Four Four Dyadic
 omega_in_D_alt = embed omega_in_Di_alt
 
-tmp :: Matrix Four Four Dyadic
-tmp = matrix4x4 (-half, half, -half, -half)
-                (-half, -half, -half, half)
-                (half, half, -half, half)
-                (half, -half, -half, -half)
+eisen_in_D :: Matrix Four Four Dyadic
+eisen_in_D = matrix4x4 (-half, half, -half, -half)
+                       (-half, -half, -half, half)
+                       (half, half, -half, half)
+                       (half, -half, -half, -half)
+
+controlled_t_in_DOmega :: Matrix Four Four DOmega
+controlled_t_in_DOmega = matrix4x4 (1, 0, 0, 0) (0, 1, 0, 0) (0, 0, 1, 0) (0, 0, 0, omega)
+
+controlled_t_in_Di :: Matrix Eight Eight (Cplx Dyadic)
+controlled_t_in_Di = embed controlled_t_in_DOmega
+
+controlled_t_in_D :: Matrix (Times Two Eight) (Times Two Eight) Dyadic
+controlled_t_in_D = embed controlled_t_in_Di
