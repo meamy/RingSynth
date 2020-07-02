@@ -145,6 +145,63 @@ probably. This crosses over somewhere around $23$ qubits.
 
 We also get additional overhead associated with the actual embedding of the QFT circuit. Unlike the standard fault-tolerant case however, we can embed the controlled $z$-rotations directly into clifford+$T$. I'll write down an explicit construction at some point, but basically each controlled $2^k$-rotation can be implemented as two $~k$ controlled Toffoli gates and a $T$ gate.
 
+\subsection{The embedding}
+
+\begin{lemma}
+For any $\zeta_{2^k}$, 
+\[
+	\Gamma = \rho(\zeta_{2^k}) = \begin{bmatrix} 0 & \zeta_{2^{k-1}} \\ 1 & 0 \end{bmatrix}
+\]
+is an embedding of $R[\zeta_{2^k}]$ into $R[\zeta_{2^{k-1}}]$.
+\end{lemma}
+\begin{proof}
+We verify that $\Gamma$ gives the embedding from Andrew's note. In particular,
+\begin{align*}
+	U = A + \zeta_{2^k}B \implies \rho(U) &= \rho(A + \zeta_{2^k}B) \\
+		&=\rho(A) + \rho(\zeta_{2^k})\rho(B) \\
+		&=I \otimes A + \Gamma \otimes B \\
+		&=\begin{bmatrix} A & 0 \\ 0 & A \end{bmatrix} + \begin{bmatrix} 0 & \zeta_{2^{k-1}}B \\ B & 0 \end{bmatrix} \\
+		&= \begin{bmatrix} A & \zeta_{2^{k-1}}B \\ B & A \end{bmatrix}
+\end{align*}
+\end{proof}
+
+\begin{lemma}
+For any $k\geq 1$, $\ket{\zeta_{2^k}} = \frac{1}{\sqrt{2}}\begin{bmatrix} \zeta_{2^k} \\ 1 \end{bmatrix}$ is a unit eigenvector of
+\[
+	\Gamma = \begin{bmatrix} 0 & \zeta_{2^{k-1}} \\ 1 & 0 \end{bmatrix}
+\]
+with eigenvalue $\zeta_{2^k}$.
+\end{lemma}
+\begin{proof}
+By calculation. That is,
+\[
+	\Gamma \ket{\zeta_{2^k}} = \frac{1}{\sqrt{2}}\begin{bmatrix} \zeta_{2^{k-1}} \\ \zeta_{2^k} \end{bmatrix} 
+		= \frac{\zeta_{2^k}}{\sqrt{2}} \begin{bmatrix} \zeta_{2^k} \\ 1 \end{bmatrix}
+\]
+\end{proof}
+
+\begin{lemma}
+For any $k \geq 1$ we have
+\[
+	\Qcircuit @C=.5em @R=0.5em @!R {
+		& \ctrl{3} & \qw \\
+		\vdots & & \vdots \\
+		& \ctrl{1} & \qw \\
+		& \gate{R_k} & \qw
+	}
+	\qquad
+	\raisebox{-3em}{$=$}
+	\qquad
+	\Qcircuit @C=.5em @R=0.5em @!R {
+		& \qw & \ctrl{4} & \ctrl{4} & \qw & \qw \\
+		\vdots & & & & \vdots \\
+		& \qw & \ctrl{2} & \ctrl{2} & \qw & \qw \\
+		& \qw & \ctrl{1} & \ctrl{1} & \qw & \qw \\
+		& \lstick{\ket{\zeta_{2^k}}} & \gate{R_{k-1}} & \targ & \qw & \rstick{\!\!\!\!\bra{\zeta_{2^k}}}
+	}
+\]
+\end{lemma}
+
 \begin{thebibliography}{9}
 
 \bibitem{twoqubit} Farrokh Vatan and Colin Williams, \emph{Optimal Quantum Circuits for General Two-Qubit Gates}. arXiv:quant-ph/0308006.
