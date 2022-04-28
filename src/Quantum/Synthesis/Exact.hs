@@ -39,7 +39,7 @@ instance ToMatrix g r => ToMatrix [g] r where
 
 -- | Class of unitaries over the ring /r/ synthesizable as a word
 --   over the generators in /g/. Implements a generic exact synthesis algorithm
-class (DenomExp r, ToMatrix g r, Adjoint r, WholePart r z) => Synthesizable r z g | r -> g, r -> z where
+class (DenomExp r, ToMatrix g r, Adjoint r, WholePart r z) => Synthesizable r z g | g -> r, g -> z where
   initialize :: Int -> [z] -> [g]
   reduce :: [z] -> [g]
   synthesizeState :: forall n. Nat n => Int -> Vector n r -> [g]
@@ -65,8 +65,6 @@ class (DenomExp r, ToMatrix g r, Adjoint r, WholePart r z) => Synthesizable r z 
         m'    = (adj $ toMatrix gates) .*. (Matrix cs)
 
 -- | Checks correctness of synthesis
-prop_correct :: (Nat n, Eq r, Adjoint r, Synthesizable r z g) => Matrix n n r -> Bool
-prop_correct m = m == (toMatrix $ synthesize m)
-
--- * Instances
--- ---------------------------------------
+prop_correct :: (Nat n, Eq r, Adjoint r, Synthesizable r z g) => [g] -> Matrix n n r -> Bool
+prop_correct proxy m = m == (toMatrix k) where
+  k = proxy ++ synthesize m

@@ -117,8 +117,8 @@ instance Nat n => Arbitrary (Matrix n n Dyadic) where
     getn = fromInteger . fromNNat 
 
 -- | Test suite
-runTests :: () -> IO ()
-runTests () = do
-  quickCheck (prop_correct :: Matrix Two Two Dyadic -> Bool)
-  quickCheck (prop_correct :: Matrix Four Four Dyadic -> Bool)
-  quickCheck (prop_correct :: Matrix Eight Eight Dyadic -> Bool)
+--runTests :: () -> IO ()
+--runTests () = do
+--  quickCheck (prop_correct :: Matrix Two Two Dyadic -> Bool)
+--  quickCheck (prop_correct :: Matrix Four Four Dyadic -> Bool)
+--  quickCheck (prop_correct :: Matrix Eight Eight Dyadic -> Bool)
