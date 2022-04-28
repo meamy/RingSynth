@@ -45,3 +45,23 @@ executable Eisenstein
                        RingSynth,
                        newsynth
   default-language:    Haskell2010
+
+executable Omega17
+  main-is:             Omega17.hs
+  buildable:           True
+  ghc-options:         -Wall
+  hs-source-dirs:      docs
+  build-depends:       base < 4.13,
+                       RingSynth,
+                       newsynth
+  default-language:    Haskell2010
+
+executable E8
+  main-is:             E8.hs
+  buildable:           True
+  ghc-options:         -Wall
+  hs-source-dirs:      docs
+  build-depends:       base < 4.13,
+                       RingSynth,
+                       newsynth
+  default-language:    Haskell2010
