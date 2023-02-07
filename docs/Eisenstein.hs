@@ -80,6 +80,10 @@ l = matrix4x4 (l1, 0, 0, 0) (0, l2, 0, 0) (0, 0, l3, 0) (0, 0, 0, l4)
 had :: Matrix Two Two (RootTwo DEisen)
 had = matrix2x2 (roothalf, roothalf) (roothalf, -roothalf)
 
+-- | The gate diag(1, \(\omega\))
+eGatert :: Matrix Two Two (RootTwo DEisen)
+eGatert = matrix2x2 (1, 0) (0, RootTwo eisen 0)
+
 -- | A simple test vector
 pl :: Matrix Two One (RootTwo DEisen)
 pl = column_matrix $ vector [roothalf, roothalf]
