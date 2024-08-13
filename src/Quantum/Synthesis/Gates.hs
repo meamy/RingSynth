@@ -241,7 +241,7 @@ instance (Nat n, ComplexRing r) => FourPermutation (Matrix n n r) where
     f (1,1) = i
     f _     = 0
 
-instance (Nat n, ComplexRing r, OmegaRing r) => EightPermutation (Matrix n n r) where
+instance (Nat n, ComplexRing r, RootHalfRing r, OmegaRing r) => EightPermutation (Matrix n n r) where
   t j = kron (natLog @n) [j] f where
     f (0,0) = 1
     f (1,1) = omega
