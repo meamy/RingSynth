@@ -55,13 +55,3 @@ executable Omega17
                        RingSynth,
                        newsynth
   default-language:    Haskell2010
-
-executable E8
-  main-is:             E8.hs
-  buildable:           True
-  ghc-options:         -Wall
-  hs-source-dirs:      examples
-  build-depends:       base,
-                       RingSynth,
-                       newsynth
-  default-language:    Haskell2010
