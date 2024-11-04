@@ -39,6 +39,10 @@ eGate = matrix2x2 (1, 0) (0, eisen)
 eGate' :: Matrix Eight Eight Dyadic
 eGate' = embed eGate
 
+-- | The embedded E gate round-trip
+eGate'' :: Matrix Eight Eight DEisen
+eGate'' = matrix_map iota eGate'
+
 -- *** Two-level synthesis of \(E'\)
 twolevel_circuit :: [DyadicGen]
 twolevel_circuit = synthesize eGate'
@@ -67,12 +71,20 @@ v4' = scalarmult (half*iroottwo) $ column_matrix $ vector [-1, -1, -(1 + 2*eisen
 lift :: Ring r => Matrix n m r -> Matrix n m (Eisenstein r)
 lift = matrix_map (\a -> Eisen 0 a)
 
-
 v :: Matrix Four Four DEisen
 v = matrix_of_columns . concatMap columns_of_matrix $ [v1, v2, v3, v4]
 
 l :: Matrix Four Four DEisen
 l = matrix4x4 (l1, 0, 0, 0) (0, l2, 0, 0) (0, 0, l3, 0) (0, 0, 0, l4)
+
+-- | Projectors
+p1, p2 :: Matrix Four Four (CplxRootTwo DEisen)
+p1 = v1' .*. adjoint v1' .+. v2' .*. adjoint v2'
+p2 = v3' .*. adjoint v3' .+. v4' .*. adjoint v4'
+
+-- | Identity matrix for convenience
+i2 :: Matrix Two Two (CplxRootTwo DEisen)
+i2 = 1
 
 -- *** Measurement results
 
@@ -120,23 +132,28 @@ eGate'_circuit =
 
 main :: IO ()
 main = do
-  putStrLn $ "Properties of Gamma:"
+  putStrLn $ "Embedding a third root of unity in Toffoli+Hadamard"
+  putStrLn $ ""
+  putStrLn $ "This example constructs and checks an embedding of D[omega] in D"
+  putStrLn $ "along with a rotation by a third root of unity around Z."
+  putStrLn $ ""
+  putStrLn $ "First we construct and check the pseudo-companion matrix Gamma:"
   putStrLn $ "  Gamma = " ++ show gamma
   putStrLn $ "  Gamma^3 = I: " ++ show (gamma^3 == 1)
   putStrLn $ "  Gamma^2 + Gamma + I = 0: " ++ show (gamma^2 + gamma + 1 == 0)
   putStrLn $ "  Gamma^*Gamma = I: " ++ show ((adj gamma) * gamma == 1)
   putStrLn $ "  GammaGamma^* = I: " ++ show (gamma * (adj gamma) == 1)
   putStrLn $ ""
-  putStrLn $ "E gates:"
+  putStrLn $ "Now we embed a third-order rotation gate over D:"
   putStrLn $ "  E = " ++ show eGate
-  putStrLn $ "  E' = " ++ show eGate'
-  putStrLn $ "  E'^3 = I: " ++ show (eGate'^3 == 1)
+  putStrLn $ "  phi(E) = " ++ show eGate'
+  putStrLn $ "  phi(E)^3 = I: " ++ show (eGate'^3 == 1)
   putStrLn $ ""
-  putStrLn $ "Circuits for E':"
-  putStrLn $ "  two level: " ++ show twolevel_circuit
-  putStrLn $ "  Over Cliffor+T: " ++ show (eGate'_circuit :: String)
+  putStrLn $ "Next we synthesize a circuit for the embedded gate phi(E):"
+  putStrLn $ "  Two level: " ++ show twolevel_circuit
+  putStrLn $ "  Over Toffoli+Hadamard: " ++ show (eGate'_circuit :: String)
   putStrLn $ ""
-  putStrLn $ "Eigenvectors:"
+  putStrLn $ "To apply E, we need catalysts, which we obtain via eigenvectors of Gamma:"
   putStrLn $ "  l1 = " ++ show l1
   putStrLn $ "  l2 = " ++ show l2
   putStrLn $ "  l3 = " ++ show l3
@@ -146,13 +163,15 @@ main = do
   putStrLn $ "  Gamma v3 = omega^* v3: " ++ show ((lift gamma) .*. v3 == scalarmult l3 v3)
   putStrLn $ "  Gamma v4 = omega^* v4: " ++ show ((lift gamma) .*. v4 == scalarmult l4 v4)
   putStrLn $ ""
-  putStrLn $ "SVD:"
-  putStrLn $ "  U = " ++ show v
-  putStrLn $ "  A = " ++ show l
-  putStrLn $ "  Gamma = UAU^*: " ++ show (adjoint v .*. l .*. v == (lift gamma))
+  putStrLn $ "Now we look at projector matrices for eigenspaces:"
+  putStrLn $ "  P1 = " ++ show p1
+  putStrLn $ "  P2 = " ++ show p2
   putStrLn $ ""
-  putStrLn $ "Evaluation:"
-  putStrLn $ "  (I x H)E'(I x H)|v1> x |0> = HEH|0>: " ++ show (test_state' == tensor v1' test_state)
+  putStrLn $ "Now verify the catalytic condition:"
+  putStrLn $ "  phi(E)(I x P1) = E x P1: " ++ show (((iota eGate'') .*. (tensor p1 i2)) == tensor p1 (matrix_map iota eGate))
+  putStrLn $ ""
+  putStrLn $ "Finally we explicitly apply HEH to the |0> state via the embedding and a catalyst state:"
+  putStrLn $ "  (I x H)phi(E)(I x H)|v1> x |0> = HEH|0>: " ++ show (test_state' == tensor v1' test_state)
   where v1'  = matrix_map (\a -> RootTwo a 0) v1
   
 

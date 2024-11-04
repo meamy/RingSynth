@@ -30,12 +30,12 @@ import qualified Data.Map as Map
 
 import Quantum.Synthesis.Matrix
 import Quantum.Synthesis.Ring
-
 import Quantum.Synthesis.TypeArith
 import Quantum.Synthesis.MoreRings
-
 import Quantum.Synthesis.Exact
-import Quantum.Synthesis.Integral
+
+
+
 {------------------------
  Embeddings
  ------------------------}
@@ -82,6 +82,15 @@ instance (Eq r, HalfRing r) => Embeddable Four (Eisenstein r) r where
                         (-half,-half,-half,half)
                         (half,half,-half,half)
                         (half,-half,-half,-half)
+
+instance (Eq r, HalfRing r) => Embeddable Two (Eisenstein r) (Cplx r) where
+  embed mat = case n_plus_n (nnatMat mat) of
+    Refl -> stack_horizontal (stack_vertical a b) (stack_vertical c d) where
+      (a0, b0) = case commute mat of Eisen a b -> (matrix_map iota a, matrix_map iota b)
+      a        = scalarmult (half*(-1 + i)) a0 .+. b0
+      b        = scalarmult (half*(-1 + i)) a0
+      c        = scalarmult (half*( 1 + i)) a0
+      d        = scalarmult (half*(-1 - i)) a0 .+. b0
 
 -- | Specific embedding for cyclotomics to deal with some GHC constraints
 embedCyclotomicMat :: forall n k r. (Nat n, Nat k, Eq r, Ring r, Nat (Power Two k), Nat (Power Two (Succ k)))
@@ -189,6 +198,9 @@ eisen_in_D = matrix4x4 (-half, half, -half, -half)
                        (-half, -half, -half, half)
                        (half, half, -half, half)
                        (half, -half, -half, -half)
+
+eisen_in_Di :: Matrix Two Two (Cplx Dyadic)
+eisen_in_Di = embedElt (eisen :: Eisenstein Dyadic)
 
 controlled_t_in_DOmega :: Matrix Four Four DOmega
 controlled_t_in_DOmega = matrix4x4 (1, 0, 0, 0) (0, 1, 0, 0) (0, 0, 1, 0) (0, 0, 0, omega)

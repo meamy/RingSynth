@@ -25,7 +25,6 @@ import Quantum.Synthesis.Matrix
 import Quantum.Synthesis.Ring
 import Quantum.Synthesis.MoreRings
 import Quantum.Synthesis.MultiQubitSynthesis
-
 import Quantum.Synthesis.Exact
 
 

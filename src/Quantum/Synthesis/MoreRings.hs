@@ -17,6 +17,7 @@ Portability : portable
 -}
 
 module Quantum.Synthesis.MoreRings(
+  Subring(..),
   EisensteinRing(..),
   CplxRootTwoRing(..),
   Z4(..),
@@ -52,6 +53,25 @@ import Quantum.Synthesis.TypeArith
 
 -- * Ring type classes
 -- ---------------------------------------
+
+-- ---------------------------------------
+-- ** Subrings
+
+-- | A subring can be inserted into the superring
+class Subring s r where
+  iota :: s -> r
+
+instance Subring s r => Subring (Matrix m n s) (Matrix m n r) where
+  iota = matrix_map iota
+
+instance Num s => Subring s (Cplx s) where
+  iota a = Cplx a 0
+
+instance Num s => Subring s (Omega s) where
+  iota a = Omega 0 0 0 a
+
+instance Num s => Subring (Cplx s) (Omega s) where
+  iota (Cplx a b) = iota a + i*(iota b)
 
 -- ---------------------------------------
 -- ** Rings with a cube root of unity
@@ -166,6 +186,9 @@ instance Ring r => EisensteinRing (Eisenstein r) where
 instance (Eq r, EisensteinRing r) => EisensteinRing (CplxRootTwo r) where
   eisen = CplxRootTwo eisen 0
 
+instance Num r => Subring r (Eisenstein r) where
+  iota a = Eisen 0 a
+
 -- ---------------------------------------
 -- ** The ring \(\mathbb{Z}[\omega]\) of Eisenstein integers
 type ZEisen = Eisenstein Integer
@@ -220,6 +243,9 @@ instance (Eq a, NormedRing a) => NormedRing (CplxRootTwo a) where
 
 instance Residue a b => Residue (CplxRootTwo a) (CplxRootTwo b) where
   residue (CplxRootTwo a b) = CplxRootTwo (residue a) (residue b)
+
+instance Num a => Subring a (CplxRootTwo a) where
+  iota a = CplxRootTwo a 0
 
 -- ---------------------------------------
 -- ** The ring \(\mathbb{Z}[i\sqrt{2}]\)

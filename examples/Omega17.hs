@@ -66,7 +66,7 @@ omega17mat = matrix_of_rows omega17
 twolevel_circuit :: [TwoLevel]
 twolevel_circuit = synthesis_nqubit omega17mat
 
--- | Alternate method, from Vadym
+-- | Alternate method using reflections
 
 -- Columns of U
 uj :: [Matrix ThirtyTwo One DOmega]
@@ -83,10 +83,6 @@ ket1 = matrix_of_columns [[0, 1]]
 -- ket j
 ketj :: Int -> Matrix ThirtyTwo One DOmega
 ketj j = matrix_of_function (\a b -> if a == j then 1 else 0)
-
--- wj
---wjplus :: [Matrix SixtyFour One DOmega]
---wjplus = map (\(j, uj) -> tensor ket1 (ketj j) .+. tensor ket0 (uj!!j)) $ zip [0..] uj
 
 wjminus :: [Matrix SixtyFour One DOmega]
 wjminus = map f $ zip [0..] uj where
