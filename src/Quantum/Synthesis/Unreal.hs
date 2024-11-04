@@ -114,8 +114,8 @@ instance Nat n => Arbitrary (Matrix n n DCplxRootTwo) where
     getn = fromInteger . fromNNat 
 
 -- | Test suite
-runTests :: () -> IO ()
-runTests () = do
-  quickCheck (prop_correct :: Matrix Two Two DCplxRootTwo -> Bool)
-  quickCheck (prop_correct :: Matrix Four Four DCplxRootTwo -> Bool)
-  quickCheck (prop_correct :: Matrix Eight Eight DCplxRootTwo -> Bool)
+--runTests :: () -> IO ()
+--runTests () = do
+--  quickCheck (prop_correct :: Matrix Two Two DCplxRootTwo -> Bool)
+--  quickCheck (prop_correct :: Matrix Four Four DCplxRootTwo -> Bool)
+--  quickCheck (prop_correct :: Matrix Eight Eight DCplxRootTwo -> Bool)

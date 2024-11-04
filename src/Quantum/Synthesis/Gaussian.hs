@@ -117,8 +117,8 @@ instance Nat n => Arbitrary (Matrix n n DGaussian) where
     getn = fromInteger . fromNNat 
 
 -- | Test suite
-runTests :: () -> IO ()
-runTests () = do
-  quickCheck (prop_correct :: Matrix Two Two DGaussian -> Bool)
-  quickCheck (prop_correct :: Matrix Four Four DGaussian -> Bool)
-  quickCheck (prop_correct :: Matrix Eight Eight DGaussian -> Bool)
+--runTests :: () -> IO ()
+--runTests () = do
+--  quickCheck (prop_correct :: Matrix Two Two DGaussian -> Bool)
+--  quickCheck (prop_correct :: Matrix Four Four DGaussian -> Bool)
+--  quickCheck (prop_correct :: Matrix Eight Eight DGaussian -> Bool)

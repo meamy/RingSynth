@@ -245,3 +245,6 @@ runTests () = do
   --quickCheck (prop_correct ([] :: [DyadicGen]) :: Matrix Two Two Dyadic -> Bool)
   --quickCheck (prop_correct ([] :: [DyadicGen]) :: Matrix Four Four Dyadic -> Bool)
   --quickCheck (prop_correct ([] :: [DyadicGen]) :: Matrix Eight Eight Dyadic -> Bool)
+--  quickCheck (prop_correct :: Matrix Two Two Dyadic -> Bool)
+--  quickCheck (prop_correct :: Matrix Four Four Dyadic -> Bool)
+--  quickCheck (prop_correct :: Matrix Eight Eight Dyadic -> Bool)
