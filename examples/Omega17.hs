@@ -114,5 +114,3 @@ main = do
   putStrLn $ "T-count for omega17: " ++ show (sum $ map tcount $ concat rj)
   --putStrLn $ "  two level: " ++ show twolevel_circuit
   
-
-

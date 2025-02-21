@@ -34,7 +34,8 @@ import Quantum.Synthesis.MoreRings
  -----------------------------}
 
 -- | Empty class
-class Gate repr
+class Gate repr where
+  identity :: repr
 
 -- | The permutation group \(S_{2^n}\)
 class Gate repr => Permutation repr where
@@ -101,7 +102,8 @@ instance (Dagger repr, Circuit repr) => Circuit (Daggered -> repr) where
 instance (Dagger repr) => Dagger (Daggered -> repr) where
   dagger c b = c $ not b
 
-instance Gate repr => Gate (Daggered -> repr)
+instance Gate repr => Gate (Daggered -> repr) where
+  identity _b = identity
 
 instance Permutation repr => Permutation (Daggered -> repr) where
   x i _b       = x i
@@ -146,7 +148,8 @@ inv c = c True
  Printing
  -----------------------------}
 
-instance Gate String
+instance Gate String where
+  identity = "\x03B5"
 
 instance Permutation String where
   x i       = "X " ++ (show i)
@@ -211,7 +214,8 @@ kron qubits indices mat = make (\i j -> maybe 0 id . liftM mat $ go i j) where
   valueAt q i = testBit i $ (fromInteger qubits)-1-q
   qubits' = length indices
 
-instance Nat n => Gate (Matrix n n r)
+instance (Nat n, Ring r) => Gate (Matrix n n r) where
+  identity = 1
 
 instance (Nat n, Ring r) => Permutation (Matrix n n r) where
   x i = kron (natLog @n) [i] f where
