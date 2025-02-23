@@ -27,6 +27,7 @@ import Quantum.Synthesis.Matrix
 import Quantum.Synthesis.Ring
 
 
+import Quantum.Synthesis.TypeArith
 import Quantum.Synthesis.MoreRings
 
 {-----------------------------
@@ -74,6 +75,13 @@ class FourPermutation repr => Gaussian repr where
 
 -- | The Clifford + T operators \(U_n(\mathbb{D}[i])\)
 class (FourPermutation repr, Real repr) => CliffordT repr
+
+-- | The Pauli operators \(\mathcal{P}_n\)
+class Gate repr => Pauli repr where
+  pauliX :: Int -> repr
+  pauliY :: Int -> repr
+  pauliZ :: Int -> repr
+  
 
 {-----------------------------
  Circuits
@@ -136,6 +144,11 @@ instance (Unreal repr, Dagger repr) => Unreal (Daggered -> repr) where
   f i False = f i
   f i True  = dagger $ f i
 
+instance (Pauli repr, Dagger repr) => Pauli (Daggered -> repr) where
+  pauliX i _ = pauliX i
+  pauliY i _ = pauliY i
+  pauliZ i _ = pauliZ i
+
 -- | Pushes daggers onto gates
 distDagger :: Dagger repr => (Daggered -> repr) -> repr
 distDagger c = c False
@@ -180,6 +193,11 @@ instance Gaussian String where
 
 instance CliffordT String
 
+instance Pauli String where
+  pauliX i = "X " ++ (show i)
+  pauliY i = "Y " ++ (show i)
+  pauliZ i = "Z " ++ (show i)
+
 instance Circuit String where
   a @@ b = a ++ "; " ++ b
 
@@ -189,6 +207,8 @@ instance Dagger String where
 {-----------------------------
  Matrices
  -----------------------------}
+
+type QubitMatrix n r = Matrix (Power Two n) (Power Two n) r
 
 -- | Convert a type-level power of 2 to a term-level exponent
 natLog :: forall n. Nat n => Integer
@@ -276,6 +296,18 @@ instance (Nat n, HalfRing r, ComplexRing r) => Gaussian (Matrix n n r) where
     f _     = (1+i)*half
 
 instance (Nat n, ComplexRing r, RootHalfRing r) => CliffordT (Matrix n n r)
+
+instance (Nat n, ComplexRing r) => Pauli (Matrix n n r) where
+  pauliX j = kron (natLog @n) [j] f where
+    f (a,b) = if a /= b then 1 else 0
+  pauliY j = kron (natLog @n) [j] f where
+    f (0,1) = -i 
+    f (1,0) = i
+    f _     = 0
+  pauliZ j = kron (natLog @n) [j] f where
+    f (0,0) = 1
+    f (1,1) = -1
+    f _     = 0
 
 instance (Nat n, Ring r) => Circuit (Matrix n n r) where
   a @@ b = b .*. a

@@ -32,7 +32,7 @@ import Data.Type.Equality
 -- ---------------------------------------
 
 -- | Type of things that can be converted to a matrix
-class Ring r => ToMatrix g r | g -> r where
+class Ring r => ToMatrix g r where
   toMatrix :: Nat n => g -> Matrix n n r
 
 instance ToMatrix g r => ToMatrix [g] r where
