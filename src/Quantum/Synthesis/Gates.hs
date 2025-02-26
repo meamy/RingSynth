@@ -38,10 +38,16 @@ import Quantum.Synthesis.MoreRings
 class Gate repr where
   identity :: repr
 
--- | The permutation group \(S_{2^n}\)
-class Gate repr => Permutation repr where
-  x   :: Int -> repr
+-- | The linear permutation group \(GL(\mathbb{F}_2, n)\)
+class Gate repr => LinearPermutation repr where
   cx  :: Int -> Int -> repr
+
+-- | The affine permutation group \(GA(\mathbb{F}_2, n)\)
+class LinearPermutation repr => AffinePermutation repr where
+  x   :: Int -> repr
+
+-- | The permutation group \(S_{2^n}\)
+class AffinePermutation repr => Permutation repr where
   ccx :: Int -> Int -> Int -> repr
 
 -- | The 2-permutation group \(S_{2^n}(2)\)
@@ -113,9 +119,13 @@ instance (Dagger repr) => Dagger (Daggered -> repr) where
 instance Gate repr => Gate (Daggered -> repr) where
   identity _b = identity
 
-instance Permutation repr => Permutation (Daggered -> repr) where
-  x i _b       = x i
+instance LinearPermutation repr => LinearPermutation (Daggered -> repr) where
   cx i j _b    = cx i j
+
+instance AffinePermutation repr => AffinePermutation (Daggered -> repr) where
+  x i _b       = x i
+
+instance Permutation repr => Permutation (Daggered -> repr) where
   ccx i j k _b = ccx i j k
 
 instance TwoPermutation repr => TwoPermutation (Daggered -> repr) where
@@ -164,9 +174,13 @@ inv c = c True
 instance Gate String where
   identity = "\x03B5"
 
-instance Permutation String where
-  x i       = "X " ++ (show i)
+instance LinearPermutation String where
   cx i j    = "CNOT " ++ (show i) ++ " " ++ (show j)
+
+instance AffinePermutation String where
+  x i       = "X " ++ (show i)
+
+instance Permutation String where
   ccx i j k = "Toffoli " ++ (show i) ++ " " ++ (show j) ++ " " ++ (show k)
 
 instance TwoPermutation String where
@@ -237,15 +251,19 @@ kron qubits indices mat = make (\i j -> maybe 0 id . liftM mat $ go i j) where
 instance (Nat n, Ring r) => Gate (Matrix n n r) where
   identity = 1
 
-instance (Nat n, Ring r) => Permutation (Matrix n n r) where
-  x i = kron (natLog @n) [i] f where
-    f (a,b) = if a /= b then 1 else 0
+instance (Nat n, Ring r) => LinearPermutation (Matrix n n r) where
   cx i j = kron (natLog @n) [i,j] f where
     f (a,b)
       | testBit a 1 /= testBit b 1 = 0
       | testBit a 1 && (testBit a 0 /= testBit b 0) = 1
       | not (testBit a 1) && (testBit a 0 == testBit b 0) = 1
       | otherwise = 0
+
+instance (Nat n, Ring r) => AffinePermutation (Matrix n n r) where
+  x i = kron (natLog @n) [i] f where
+    f (a,b) = if a /= b then 1 else 0
+
+instance (Nat n, Ring r) => Permutation (Matrix n n r) where
   ccx i j k = kron (natLog @n) [i,j,k] f where
     f (a,b)
       | testBit a 2 /= testBit b 2 || testBit a 1 /= testBit b 1 = 0

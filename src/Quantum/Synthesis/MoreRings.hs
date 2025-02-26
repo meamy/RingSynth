@@ -60,18 +60,41 @@ import Quantum.Synthesis.TypeArith
 -- | A subring can be inserted into the superring
 class Subring s r where
   iota :: s -> r
+  isSub :: r -> Maybe s
+  coerceSubring :: r -> s
+  -- Default instances
+  isSub = Just . coerceSubring
+  coerceSubring a = case isSub a of
+    Nothing -> error "Not in the subring"
+    Just b  -> b
 
 instance Subring s r => Subring (Matrix m n s) (Matrix m n r) where
-  iota = matrix_map iota
+  iota  = matrix_map iota
+  coerceSubring = matrix_map coerceSubring
 
-instance Num s => Subring s (Cplx s) where
-  iota a = Cplx a 0
+instance (Eq s, Num s) => Subring s (Cplx s) where
+  iota a  = Cplx a 0
+  isSub a = case a of
+    Cplx a 0 -> Just a
+    _        -> Nothing
 
-instance Num s => Subring s (Omega s) where
+instance (Eq s, Num s) => Subring s (Omega s) where
   iota a = Omega 0 0 0 a
+  isSub a = case a of
+    Omega 0 0 0 a -> Just a
+    _             -> Nothing
 
-instance Num s => Subring (Cplx s) (Omega s) where
+instance (Eq s, Num s) => Subring (Cplx s) (Omega s) where
   iota (Cplx a b) = iota a + i*(iota b)
+  isSub a = case a of
+    Omega 0 b 0 a -> Just $ Cplx a b
+    _             -> Nothing
+
+instance (Eq s, Num s, HalfRing s) => Subring (RootTwo s) (Omega s) where
+  iota (RootTwo a b) = Omega b 0 b a
+  isSub a = case a of
+    Omega c 0 b a | b == -c -> Just $ RootTwo a b
+    _                       -> Nothing
 
 -- ---------------------------------------
 -- ** Rings with a cube root of unity
@@ -186,8 +209,11 @@ instance Ring r => EisensteinRing (Eisenstein r) where
 instance (Eq r, EisensteinRing r) => EisensteinRing (CplxRootTwo r) where
   eisen = CplxRootTwo eisen 0
 
-instance Num r => Subring r (Eisenstein r) where
+instance (Eq r, Num r) => Subring r (Eisenstein r) where
   iota a = Eisen 0 a
+  isSub a = case a of
+    Eisen 0 a -> Just a
+    _         -> Nothing
 
 -- ---------------------------------------
 -- ** The ring \(\mathbb{Z}[\omega]\) of Eisenstein integers
@@ -244,8 +270,11 @@ instance (Eq a, NormedRing a) => NormedRing (CplxRootTwo a) where
 instance Residue a b => Residue (CplxRootTwo a) (CplxRootTwo b) where
   residue (CplxRootTwo a b) = CplxRootTwo (residue a) (residue b)
 
-instance Num a => Subring a (CplxRootTwo a) where
-  iota a = CplxRootTwo a 0
+instance (Eq a, Num a) => Subring a (CplxRootTwo a) where
+  iota a  = CplxRootTwo a 0
+  isSub a = case a of
+    CplxRootTwo a 0 -> Just a
+    _               -> Nothing
 
 -- ---------------------------------------
 -- ** The ring \(\mathbb{Z}[i\sqrt{2}]\)
