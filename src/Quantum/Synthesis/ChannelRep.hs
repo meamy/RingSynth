@@ -7,6 +7,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE GADTs #-}
 
 {-|
 Module      : ChannelRep
@@ -19,6 +20,7 @@ Portability : portable
 module Quantum.Synthesis.ChannelRep where
 
 import Data.String
+import Data.List
 
 import Quantum.Synthesis.Matrix
 import Quantum.Synthesis.Ring
@@ -112,6 +114,10 @@ instance Nat n => Pauli (PauliGroup n) where
 instance (ComplexRing r, Nat n) => ToMatrix (PauliGroup n) r where
   toMatrix = pauli
 
+-- | Access the pauli vector of a pauli
+proj :: PauliGroup n -> Vector n PauliGate
+proj (PauliOp (_,p)) = p
+
 -- | Interpret a member of the n-qubit Pauli group
 pauli :: (Pauli repr, Circuit repr, Nat n) => PauliGroup n -> repr
 pauli (PauliOp (t,p)) = foldl (@@) identity . map toRepr . zip [0..] $ list_of_vector p
@@ -145,9 +151,6 @@ intToPauliGroup a = PauliOp (I0, vector . reverse $ go 0 a) where
           2 -> PauliY
           3 -> PauliZ
 
--- * pi/4 Pauli rotations
--- ---------------------------------------
-
 -- | Converts a plus or minus to a scalar
 pauliPhaseToScalar :: ComplexRing r => PauliPhase -> r
 pauliPhaseToScalar a = case a of
@@ -155,6 +158,33 @@ pauliPhaseToScalar a = case a of
   I1 -> i
   I2 -> -1
   I3 -> -i
+
+-- | Checks whether a Pauli is the identity up to a phase
+isIdentity :: Nat n => PauliGroup n -> Bool
+isIdentity (PauliOp (_,p)) = all (== PauliI) $ list_of_vector p
+
+-- | Checks whether a Pauli is in the linear span of a subset of Paulis
+inSpan :: forall n. Nat n => PauliGroup n -> [PauliGroup n] -> Bool
+inSpan p xs = isIdentity $ foldr reduce p [0..(nat @n undefined)-1] where
+  reduce i p = case vector_index (proj p) i of
+    PauliI -> p
+    p'     -> reduceP i p' p
+  reduceP i pauli p = case findP i pauli xs of
+    Just q  -> p <> q
+    Nothing ->
+      let (x,z) = calculateProduct pauli in
+        case (findP i x xs, findP i z xs) of
+          (Just q, Just q') -> p <> q <> q'
+          _                 -> p
+  findP i p = find (\q -> vector_index (proj q) i == p)
+  calculateProduct p = case p of
+    PauliX -> (PauliY, PauliZ)
+    PauliY -> (PauliX, PauliZ)
+    PauliZ -> (PauliX, PauliY)
+    PauliI -> error "Why are you trying to find a Pauli I?"
+
+-- * pi/4 Pauli rotations
+-- ---------------------------------------
 
 newtype PauliExp n = Exp (PauliGroup n)
 
@@ -217,7 +247,7 @@ intToPauliN n a
     in
       g:(intToPauliN (n-1) $ a `div` 4)
 
--- * pi/4 Pauli rotations
+-- * pi/4 Pauli rotations using Pauli generators
 -- ---------------------------------------
 data PM = Plus | Minus deriving (Eq, Show, Ord)
 
@@ -288,13 +318,52 @@ channelRep' u = mat where
     in
       s * (tr $ u * p * (adj u) * q)
 
+-- | Generates the channel representation of a pi/4 rotation of a Pauli string
+pauliExp :: forall n. Nat n => String -> ChannelMatrix n DRootTwo
+pauliExp = coerceSubring . channelRep @n . toMat . fromStr where
+  toMat :: PauliExp n -> QubitMatrix n DOmega
+  toMat m = withProof (power_is_nat (nnat @Two) (nnat @n)) $ toMatrix m
+
+  fromStr :: String -> PauliExp n
+  fromStr = Exp . fromString
+
+-- | Calculates the paulis which quasi-commute with the unitary
+commutingPaulis :: forall n. Nat n => ChannelMatrix n DRootTwo -> [PauliGroup n]
+commutingPaulis = foldr go [] . zip [0..] . list_of_vector . unMatrix where
+  go (i, vec) acc = case denomexp vec of
+    0 -> (intToPauliGroup @n i):acc
+    _ -> acc
+
+-- | Given a channel matrix, calculates the Paulis which are not zero mod 2
+reducibles :: forall n. Nat n => ChannelMatrix n DRootTwo -> [[(PauliGroup n, String)]]
+reducibles = map go . list_of_vector . unMatrix . residueCMat @n where
+  go = foldr f [] . zip [0..] . list_of_vector
+  f (i,a) acc = case a of
+    RootTwo 0 0 -> acc
+    RootTwo 1 0 -> (intToPauliGroup @n i, "10"):acc
+    RootTwo 0 1 -> (intToPauliGroup @n i, "01"):acc
+    RootTwo 1 1 -> (intToPauliGroup @n i, "11"):acc
+
+-- * Testing
+-- ---------------------------------------
+
+-- | Gets the residue mod 2 of the channel representation
+residueCMat :: forall n. Nat n => ChannelMatrix n DRootTwo -> ChannelMatrix n (RootTwo Z2)
+residueCMat m = residue m' where
+  (m', sde) = denomexp_decompose m
+
 -- | Channel representation of Pauli rotations
 allPauliRotations :: forall m. Nat m => Int -> [Matrix m m DOmega]
 allPauliRotations n = map go [0..2^n - 1] where
   go :: Integer -> Matrix m m DOmega
   go i = toMatrix $ R Plus (intToPauliN n i)
 
--- | Tests
+pp_matrix :: (Nat n, Nat m, Show r) => Matrix n m r -> IO ()
+pp_matrix = go . rows_of_matrix where
+  go []     = return ()
+  go (x:xs) = do
+    putStrLn ("[" ++ intercalate " " (map show x) ++ "]")
+    go xs
 
 tChannel :: ChannelMatrix One DOmega
 tChannel = tgateChannel where
@@ -311,3 +380,19 @@ tChannel' = coerceSubring tgateChannel where
   
   tgateChannel :: ChannelMatrix One DOmega
   tgateChannel = channelRep' tgate
+
+pauliTest :: PauliExp Two
+pauliTest = Exp "-XY"
+
+pauliRotMatrix :: QubitMatrix Two DOmega
+pauliRotMatrix = toMatrix pauliTest
+
+pauliRotCRep :: ChannelMatrix Two DRootTwo
+pauliRotCRep = coerceSubring $ channelRep @Two pauliRotMatrix
+
+xx = pauliExp @Two "XX"
+xi = pauliExp @Two "XI"
+ix = pauliExp @Two "IX"
+tmp = xx * xi * ix
+tmpRed = residueCMat @Two tmp
+xxRed = residueCMat @Two xx
