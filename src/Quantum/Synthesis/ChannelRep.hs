@@ -21,6 +21,7 @@ module Quantum.Synthesis.ChannelRep where
 
 import Data.String
 import Data.List
+import Data.Bits
 
 import Quantum.Synthesis.Matrix
 import Quantum.Synthesis.Ring
@@ -28,6 +29,45 @@ import Quantum.Synthesis.MoreRings
 import Quantum.Synthesis.TypeArith
 import Quantum.Synthesis.Exact
 import Quantum.Synthesis.Gates hiding (Integral)
+import qualified Utils.Unicode as U
+
+-- * Utilities
+-- ---------------------------------------
+
+class CompactShow a where
+  compactShow :: a -> String
+
+instance CompactShow DOmega where
+  compactShow (Omega a b c d) = sgn1 a ++ show a ++ U.omega ++ U.supscript 3 ++
+                                sgn b ++ show b ++ "i" ++
+                                sgn c ++ show c ++ U.omega ++
+                                sgn d ++ show d ++ " |"
+    where sgn a = case a < 0 of
+            True  -> ""
+            False -> "+"
+          sgn1 a = case a < 0 of
+            True  -> ""
+            False -> " "
+
+instance CompactShow DRootTwo where
+  compactShow (RootTwo a b) = if length str < 2 then " " ++ str else str where
+    str = case (a, b) of
+      (0,0) -> " 0"
+      (0,b) -> showRt2 b
+      (a,0) -> show a
+      (a,b) | b < 0 -> show a ++ showRt2 b
+      (a,b) | otherwise -> show a ++ "+" ++ showRt2 b
+    showRt2 b = case b of
+      1  -> U.rt2
+      -1 -> "-" ++ U.rt2
+      _  -> show b ++ U.rt2
+
+instance CompactShow (RootTwo Z2) where
+  compactShow (RootTwo a b) = case (a,b) of
+    (0,0) -> show 0
+    (1,0) -> show 1
+    (0,1) -> show 2
+    (1,1) -> show 3
 
 -- * The n-qubit Pauli group
 -- ---------------------------------------
@@ -118,6 +158,15 @@ instance (ComplexRing r, Nat n) => ToMatrix (PauliGroup n) r where
 proj :: PauliGroup n -> Vector n PauliGate
 proj (PauliOp (_,p)) = p
 
+-- | Inserts a Pauli at position "i"
+insertI :: Nat n => Int -> PauliGate -> PauliGroup n -> PauliGroup (Succ n)
+insertI i p (PauliOp (pp,pg)) = PauliOp (pp,pg') where
+  pg' = vector_of_function f
+
+  f j | j < i  = vector_index pg j
+      | j == i = p
+      | j > i  = vector_index pg (j-1)
+
 -- | Interpret a member of the n-qubit Pauli group
 pauli :: (Pauli repr, Circuit repr, Nat n) => PauliGroup n -> repr
 pauli (PauliOp (t,p)) = foldl (@@) identity . map toRepr . zip [0..] $ list_of_vector p
@@ -150,6 +199,17 @@ intToPauliGroup a = PauliOp (I0, vector . reverse $ go 0 a) where
           1 -> PauliX
           2 -> PauliY
           3 -> PauliZ
+
+-- | Convert an n-qubit Pauli to an integer
+pauliGroupToInt :: forall n. Nat n => PauliGroup n -> Integer
+pauliGroupToInt (PauliOp (_, vec)) = foldl go 0 $ list_of_vector vec where
+  go acc p = (acc `shiftL` 2) + getInt p
+
+  getInt p = case p of
+    PauliI -> 0
+    PauliX -> 1
+    PauliY -> 2
+    PauliZ -> 3
 
 -- | Converts a plus or minus to a scalar
 pauliPhaseToScalar :: ComplexRing r => PauliPhase -> r
@@ -334,9 +394,14 @@ commutingPaulis = foldr go [] . zip [0..] . list_of_vector . unMatrix where
     0 -> (intToPauliGroup @n i):acc
     _ -> acc
 
+-- | Gets the residue mod 2 of the channel representation
+residueChannel :: forall n. Nat n => ChannelMatrix n DRootTwo -> ChannelMatrix n (RootTwo Z2)
+residueChannel m = residue m' where
+  (m', sde) = denomexp_decompose m
+
 -- | Given a channel matrix, calculates the Paulis which are not zero mod 2
 reducibles :: forall n. Nat n => ChannelMatrix n DRootTwo -> [[(PauliGroup n, String)]]
-reducibles = map go . list_of_vector . unMatrix . residueCMat @n where
+reducibles = map go . list_of_vector . unMatrix . residueChannel @n where
   go = foldr f [] . zip [0..] . list_of_vector
   f (i,a) acc = case a of
     RootTwo 0 0 -> acc
@@ -344,26 +409,62 @@ reducibles = map go . list_of_vector . unMatrix . residueCMat @n where
     RootTwo 0 1 -> (intToPauliGroup @n i, "01"):acc
     RootTwo 1 1 -> (intToPauliGroup @n i, "11"):acc
 
+-- | Computes the channel matrix on the |0> (ancillary) subspace of the indicated qubit
+setAncilla :: forall n r. (Nat n, HalfRing r) => Int -> ChannelMatrix (Succ n) r -> ChannelMatrix n r
+setAncilla i mat = mat' where
+  n' = (nat @n undefined) + 1
+
+  mat' :: ChannelMatrix n r
+  mat' = withProof (power_is_nat (nnat @Four) (nnat @n)) $
+    withProof (power_is_nat (nnat @Two) (nnat @n)) $
+    matrix_of_function f
+
+  f x y = 
+    let p  = intToPauliGroup @n x
+        pi = pauliGroupToInt $ insertI i PauliI p
+        pz = pauliGroupToInt $ insertI i PauliZ p
+        q  = intToPauliGroup @n y
+        qi = pauliGroupToInt $ insertI i PauliI q
+        qz = pauliGroupToInt $ insertI i PauliZ q
+    in
+      half*(matrix_index mat pi qi + matrix_index mat pi qz +
+            matrix_index mat pz qi + matrix_index mat pz qz)
+
+-- | Prints a channel matrix compactly
+printChannel :: forall n r z. (Nat n, Nat (Power Four n), CompactShow r, DenomExp r) =>
+                              ChannelMatrix n r -> IO ()
+printChannel m = go . zip [0..] $ rows_of_matrix m' where
+  sde = denomexp m
+  m' = denomexp_factor m sde
+
+  go []         = putStrLn ("sde = " ++ show sde) >> return ()
+  go ((i,x):xs) = do
+    let p = intToPauliGroup @n i
+    putStrLn (show p ++ " [" ++ intercalate " " (map compactShow x) ++ "]")
+    go xs
+
+-- | Prints a channel matrix compactly
+printResidue :: forall n. (Nat n, Nat (Power Four n)) => ChannelMatrix n DRootTwo -> IO ()
+printResidue m = go . zip [0..] $ rows_of_matrix m' where
+  m' = residueChannel @n m
+
+  go []         = return ()
+  go ((i,x):xs) = do
+    let p = intToPauliGroup @n i
+    putStrLn (show p ++ " [" ++ concatMap showIt x ++ "]")
+    go xs
+
+  showIt 0 = " "
+  showIt x = compactShow x
+
 -- * Testing
 -- ---------------------------------------
-
--- | Gets the residue mod 2 of the channel representation
-residueCMat :: forall n. Nat n => ChannelMatrix n DRootTwo -> ChannelMatrix n (RootTwo Z2)
-residueCMat m = residue m' where
-  (m', sde) = denomexp_decompose m
 
 -- | Channel representation of Pauli rotations
 allPauliRotations :: forall m. Nat m => Int -> [Matrix m m DOmega]
 allPauliRotations n = map go [0..2^n - 1] where
   go :: Integer -> Matrix m m DOmega
   go i = toMatrix $ R Plus (intToPauliN n i)
-
-pp_matrix :: (Nat n, Nat m, Show r) => Matrix n m r -> IO ()
-pp_matrix = go . rows_of_matrix where
-  go []     = return ()
-  go (x:xs) = do
-    putStrLn ("[" ++ intercalate " " (map show x) ++ "]")
-    go xs
 
 tChannel :: ChannelMatrix One DOmega
 tChannel = tgateChannel where
@@ -381,18 +482,13 @@ tChannel' = coerceSubring tgateChannel where
   tgateChannel :: ChannelMatrix One DOmega
   tgateChannel = channelRep' tgate
 
-pauliTest :: PauliExp Two
-pauliTest = Exp "-XY"
 
-pauliRotMatrix :: QubitMatrix Two DOmega
-pauliRotMatrix = toMatrix pauliTest
+setAncilla2 :: HalfRing r => Int -> ChannelMatrix Three r -> ChannelMatrix Two r
+setAncilla2 = setAncilla @Two
 
-pauliRotCRep :: ChannelMatrix Two DRootTwo
-pauliRotCRep = coerceSubring $ channelRep @Two pauliRotMatrix
-
-xx = pauliExp @Two "XX"
-xi = pauliExp @Two "XI"
-ix = pauliExp @Two "IX"
-tmp = xx * xi * ix
-tmpRed = residueCMat @Two tmp
-xxRed = residueCMat @Two xx
+pp_matrix :: (Nat n, Nat m, Show r) => Matrix n m r -> IO ()
+pp_matrix = go . rows_of_matrix where
+  go []     = return ()
+  go (x:xs) = do
+    putStrLn ("[" ++ intercalate " " (map show x) ++ "]")
+    go xs
