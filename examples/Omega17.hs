@@ -12,13 +12,26 @@
 module Main where
 
 import Prelude hiding (Integral, Real)
+import Data.List (elemIndex)
+import Data.Maybe (fromJust)
 
 import Quantum.Synthesis.Matrix
 import Quantum.Synthesis.Ring
 import Quantum.Synthesis.MultiQubitSynthesis
 
--- ---------------------------------------
--- ** Worked out example
+import Quantum.Synthesis.TypeArith
+import Quantum.Synthesis.Exact
+import Quantum.Synthesis.Gates
+
+{-
+
+This is an example synthesizing a Clifford+T circuit implementing
+a 17th root of unity, via the embedding of D[omega_17] in D[omega_8].
+
+We first give the pseudo-companion matrix of omega_17 in D[omega_8],
+then synthesize a single qubit Z-rotation by an angle of omega_17
+via Householder reflections and exact synthesis over D[omega_8]
+-}
 
 -- | \(\omega_17\) in \(\mathbb{D}[\omega_8]\)
 omega17 :: [[DOmega]]
@@ -97,7 +110,7 @@ wjminus = map f $ zip [0..] uj where
 cj :: [[TwoLevel]]
 cj = map (\(j, wj) -> reduce_column wj j) $ zip [0..] wjminus
 
--- Reflections
+-- Reflections, synthesized
 rj :: [[TwoLevel]]
 rj = map (\cj -> cj ++ [TL_omega 4 31] ++ invert_twolevels cj) cj
 
@@ -107,10 +120,15 @@ tcount (TL_H _ _) = 36
 tcount (TL_T _ _ _) = 53
 tcount (TL_omega _ _) = 53
 
+-- | Finds the order of a matrix, or loops infinitely otherwise
+order :: Nat n => Matrix n n DOmega -> Int
+order m = 1 + (fromJust $ elemIndex identity xs) where
+  xs = m:map (m .*.) xs
+
 main :: IO ()
 main = do
-  --putStrLn $ "Circuit for omega17: " ++ show (concat rj)
+  putStrLn $ "Sanity check: |omega17| = " ++ show (order omega17mat)
   putStrLn $ "Circuit length for omega17: " ++ show (length $ concat rj)
   putStrLn $ "T-count for omega17: " ++ show (sum $ map tcount $ concat rj)
-  --putStrLn $ "  two level: " ++ show twolevel_circuit
+  putStrLn $ "Synthesized (2 level) circuit: " ++ show (concat rj)
   
