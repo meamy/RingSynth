@@ -71,22 +71,10 @@ instance (Eq r, ComplexRing r) => Embeddable Two (RootTwo r) r where
       b1    = scalarmult (1 + i) b
       b2    = scalarmult (1 - i) b
 
-instance (Eq r, HalfRing r) => Embeddable Four (Eisenstein r) r where
-  embed :: forall n. Nat n => Matrix n n (Eisenstein r) -> Matrix (Four `Times` n) (Four `Times` n) r
-  embed mat = withProof (times_is_nat (nnat @Four) (nnatMat mat)) go mat where
-    go :: Nat (Four `Times` n) => Matrix n n (Eisenstein r) -> Matrix (Four `Times` n) (Four `Times` n) r
-    go mat = (tensor gamma (1 :: Matrix n n r))*(lift a) + lift b where
-      (Eisen a b) = commute mat
-      lift = tensor (1 :: Matrix Four Four r)
-      gamma = matrix4x4 (-half,half,-half,-half)
-                        (-half,-half,-half,half)
-                        (half,half,-half,half)
-                        (half,-half,-half,-half)
-
-instance (Eq r, HalfRing r) => Embeddable Two (Eisenstein r) (Cplx r) where
+instance (Eq r, HalfRing r, ComplexRing r) => Embeddable Two (Eisenstein r) r where
   embed mat = case n_plus_n (nnatMat mat) of
     Refl -> stack_horizontal (stack_vertical a b) (stack_vertical c d) where
-      (a0, b0) = case commute mat of Eisen a b -> (matrix_map iota a, matrix_map iota b)
+      (a0, b0) = case commute mat of Eisen a b -> (a, b)
       a        = scalarmult (half*(-1 + i)) a0 .+. b0
       b        = scalarmult (half*(-1 + i)) a0
       c        = scalarmult (half*( 1 + i)) a0
@@ -200,7 +188,7 @@ eisen_in_D = matrix4x4 (-half, half, -half, -half)
                        (half, -half, -half, -half)
 
 eisen_in_Di :: Matrix Two Two (Cplx Dyadic)
-eisen_in_Di = embedElt (eisen :: Eisenstein Dyadic)
+eisen_in_Di = embedElt (eisen :: Eisenstein (Cplx Dyadic))
 
 controlled_t_in_DOmega :: Matrix Four Four DOmega
 controlled_t_in_DOmega = matrix4x4 (1, 0, 0, 0) (0, 1, 0, 0) (0, 0, 1, 0) (0, 0, 0, omega)

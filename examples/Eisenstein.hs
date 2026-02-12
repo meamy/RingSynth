@@ -19,101 +19,52 @@ import Quantum.Synthesis.Ring
 import Quantum.Synthesis.MoreRings
 import Quantum.Synthesis.Exact
 import Quantum.Synthesis.Gates
-import Quantum.Synthesis.Integral
+import Quantum.Synthesis.Gaussian
 import Quantum.Synthesis.Embeddings
 
 -- ---------------------------------------
 -- ** Worked out example
 
+type DiEisen = Eisenstein DGaussian
+
 -- | \(\omega\) in \mathbb{D}
-gamma :: Matrix Four Four Dyadic
-gamma = embed . column_matrix . vector_singleton $ (eisen :: DEisen)
+gamma :: Matrix Two Two DGaussian
+gamma = embed . column_matrix . vector_singleton $ (eisen :: DiEisen)
 
 -- *** Cube root of unity phase gate
 
 -- | The gate diag(1, \(\omega\))
-eGate :: Matrix Two Two DEisen
+eGate :: Matrix Two Two DiEisen
 eGate = matrix2x2 (1, 0) (0, eisen)
 
 -- | The embedded E gate diag(1, \(\omega\))
-eGate' :: Matrix Eight Eight Dyadic
+eGate' :: Matrix Four Four DGaussian
 eGate' = embed eGate
 
 -- | The embedded E gate round-trip
-eGate'' :: Matrix Eight Eight DEisen
+eGate'' :: Matrix Four Four DiEisen
 eGate'' = matrix_map iota eGate'
 
 -- *** Two-level synthesis of \(E'\)
-twolevel_circuit :: [DyadicGen]
+twolevel_circuit :: [GaussianGen]
 twolevel_circuit = synthesize eGate'
 
 -- *** Eigenvectors and eigenvalues
   
-l1,l2,l3,l4 :: DEisen
-l1 = eisen
-l2 = eisen
-l3 = adj eisen
-l4 = adj eisen
-
-v1,v2,v3,v4 :: Matrix Four One DEisen
-v1 = column_matrix $ vector [eisen, adj eisen, 0, 1]
-v2 = column_matrix $ vector [-(adj eisen), eisen, 1, 0]
-v3 = column_matrix $ vector [adj eisen, eisen, 0, 1]
-v4 = column_matrix $ vector [-eisen, adj eisen, 1, 0]
-
--- | orthogonal eigenvectors
-v1',v2',v3',v4' :: Matrix Four One (CplxRootTwo DEisen)
-v1' = matrix_map (\a -> CplxRootTwo a 0) v1
-v2' = scalarmult (half*iroottwo) $ column_matrix $ vector [1, 1, -(1 + 2*eisen), 1]
-v3' = matrix_map (\a -> CplxRootTwo a 0) v3
-v4' = scalarmult (half*iroottwo) $ column_matrix $ vector [-1, -1, -(1 + 2*eisen), -1]
-
-lift :: Ring r => Matrix n m r -> Matrix n m (Eisenstein r)
-lift = matrix_map (\a -> Eisen 0 a)
-
-v :: Matrix Four Four DEisen
-v = matrix_of_columns . concatMap columns_of_matrix $ [v1, v2, v3, v4]
-
-l :: Matrix Four Four DEisen
-l = matrix4x4 (l1, 0, 0, 0) (0, l2, 0, 0) (0, 0, l3, 0) (0, 0, 0, l4)
+chi :: Matrix Two One DiEisen
+chi = column_matrix $ vector [half*(-eisen + (iota (i :: DGaussian))*(adj eisen)), 1]
 
 -- | Projectors
-p1, p2 :: Matrix Four Four (CplxRootTwo DEisen)
-p1 = v1' .*. adjoint v1' .+. v2' .*. adjoint v2'
-p2 = v3' .*. adjoint v3' .+. v4' .*. adjoint v4'
+pChi :: Matrix Two Two DiEisen
+pChi = chi .*. adjoint chi
 
 -- | Identity matrix for convenience
-i2 :: Matrix Two Two (CplxRootTwo DEisen)
+i2 :: Matrix Two Two DiEisen
 i2 = 1
-
--- *** Measurement results
-
--- | Hadamard matrix in RootTwo DEisen
-had :: Matrix Two Two (RootTwo DEisen)
-had = matrix2x2 (roothalf, roothalf) (roothalf, -roothalf)
-
--- | The gate diag(1, \(\omega\))
-eGatert :: Matrix Two Two (RootTwo DEisen)
-eGatert = matrix2x2 (1, 0) (0, RootTwo eisen 0)
-
--- | A simple test vector
-pl :: Matrix Two One (RootTwo DEisen)
-pl = column_matrix $ vector [roothalf, roothalf]
-
--- | The state HEH|0>
-test_state :: Matrix Two One (RootTwo DEisen)
-test_state = had .*. (matrix_map (\a -> RootTwo a 0) eGate) .*. pl
-
--- | The state (I\otimes H)E'(I\otimes H)(|v1>\otimes|0>)
-test_state' :: Matrix Eight One (RootTwo DEisen)
-test_state' = had' .*. (matrix_map f eGate') .*. (tensor v1' pl) where
-  had' = tensor (1 :: Matrix Four Four (RootTwo DEisen)) had
-  f a  = RootTwo (Eisen 0 a) 0
-  v1'  = matrix_map (\a -> RootTwo a 0) v1
 
 -- *** Resource counts
 
--- Clifford + T implementation of eGate'
+-- | Clifford + T implementation of eGate'
 eGate'_circuit :: (Circuit repr, CliffordT repr) => repr
 eGate'_circuit =
   ccx 2 1 0 @@
@@ -132,9 +83,9 @@ eGate'_circuit =
 
 main :: IO ()
 main = do
-  putStrLn $ "Embedding a third root of unity in Toffoli+Hadamard"
+  putStrLn $ "Embedding a third root of unity in Clifford+T"
   putStrLn $ ""
-  putStrLn $ "This example constructs and checks an embedding of D[omega] in D"
+  putStrLn $ "This example constructs and checks an embedding of D[omega] in D[i]"
   putStrLn $ "along with a rotation by a third root of unity around Z."
   putStrLn $ ""
   putStrLn $ "First we construct and check the pseudo-companion matrix Gamma:"
@@ -154,25 +105,15 @@ main = do
   putStrLn $ "  Over Toffoli+Hadamard: " ++ show (eGate'_circuit :: String)
   putStrLn $ ""
   putStrLn $ "To apply E, we need catalysts, which we obtain via eigenvectors of Gamma:"
-  putStrLn $ "  l1 = " ++ show l1
-  putStrLn $ "  l2 = " ++ show l2
-  putStrLn $ "  l3 = " ++ show l3
-  putStrLn $ "  l4 = " ++ show l4
-  putStrLn $ "  Gamma v1 = omega v1: " ++ show ((lift gamma) .*. v1 == scalarmult l1 v1)
-  putStrLn $ "  Gamma v2 = omega v2: " ++ show ((lift gamma) .*. v2 == scalarmult l2 v2)
-  putStrLn $ "  Gamma v3 = omega^* v3: " ++ show ((lift gamma) .*. v3 == scalarmult l3 v3)
-  putStrLn $ "  Gamma v4 = omega^* v4: " ++ show ((lift gamma) .*. v4 == scalarmult l4 v4)
+  putStrLn $ "  chi = " ++ show chi
   putStrLn $ ""
-  putStrLn $ "Now we look at projector matrices for eigenspaces:"
-  putStrLn $ "  P1 = " ++ show p1
-  putStrLn $ "  P2 = " ++ show p2
+  putStrLn $ "Now we look at projector matrices for eigenspace:"
+  putStrLn $ "  P = " ++ show pChi
   putStrLn $ ""
   putStrLn $ "Now verify the catalytic condition:"
-  putStrLn $ "  phi(E)(I x P1) = E x P1: " ++ show (((iota eGate'') .*. (tensor p1 i2)) == tensor p1 (matrix_map iota eGate))
-  putStrLn $ ""
-  putStrLn $ "Finally we explicitly apply HEH to the |0> state via the embedding and a catalyst state:"
-  putStrLn $ "  (I x H)phi(E)(I x H)|v1> x |0> = HEH|0>: " ++ show (test_state' == tensor v1' test_state)
-  where v1'  = matrix_map (\a -> RootTwo a 0) v1
+  putStrLn $ "  phi(E)(I x P) = E x P: " ++ show ((eGate'' .*. (tensor pChi i2)) == tensor pChi eGate)
+  putStrLn $ "  phi(E)(I x P) = E x P: " ++ show ((eGate'' .*. (tensor pChi i2)))
+  putStrLn $ "  phi(E)(I x P) = E x P: " ++ show (tensor pChi eGate)
   
 
 
